@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Snake Logic Tests</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101423;
+      --panel: #171d30;
+      --muted: #95a1c3;
+      --text: #edf2ff;
+      --pass: #4ecca3;
+      --fail: #ff6b6b;
+      --border: #2a3350;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 32px;
+      font-family: Consolas, "Courier New", monospace;
+      background: radial-gradient(circle at top, #1c2440 0%, var(--bg) 58%);
+      color: var(--text);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    p {
+      margin: 0 0 20px;
+      color: var(--muted);
+      max-width: 720px;
+      line-height: 1.5;
+    }
+
+    #summary,
+    #results {
+      background: color-mix(in srgb, var(--panel) 92%, black 8%);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+
+    #summary {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      padding: 16px 18px;
+      margin-bottom: 20px;
+    }
+
+    .stat {
+      min-width: 120px;
+    }
+
+    .stat-label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 26px;
+      font-weight: 700;
+    }
+
+    #results {
+      padding: 10px 0;
+      overflow: hidden;
+    }
+
+    .test-row {
+      padding: 14px 18px;
+      border-top: 1px solid var(--border);
+    }
+
+    .test-row:first-child {
+      border-top: 0;
+    }
+
+    .test-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+      margin-bottom: 6px;
+    }
+
+    .test-name {
+      font-weight: 700;
+    }
+
+    .test-status {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .pass .test-status {
+      color: var(--pass);
+    }
+
+    .fail .test-status {
+      color: var(--fail);
+    }
+
+    .test-message {
+      color: var(--muted);
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <h1>Snake Logic Tests</h1>
+  <p>Diese Seite prueft die ausgelagerte Spiellogik direkt im Browser. Fokus: XP, Perk-Effekte, Kollisionen, Score-Combo und cursed extraGrowth.</p>
+
+  <section id="summary">
+    <div class="stat">
+      <span class="stat-label">Total</span>
+      <span class="stat-value" id="total-count">0</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Passed</span>
+      <span class="stat-value" id="pass-count">0</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Failed</span>
+      <span class="stat-value" id="fail-count">0</span>
+    </div>
+  </section>
+
+  <section id="results"></section>
+
+  <script src="./perks.js"></script>
+  <script src="./snake-logic.js"></script>
+  <script src="./snake.tests.js"></script>
+</body>
+</html>

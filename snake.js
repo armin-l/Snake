@@ -1,4 +1,14 @@
 const { PERKS, PERK_MAP, TIER_ORDER } = window.SnakePerks;
+const {
+  sumFx: sumFxFromLogic,
+  xpReqProduct: xpReqProductFromLogic,
+  xpForLevel: xpForLevelFromLogic,
+  occupiedSet: occupiedSetFromLogic,
+  resolveWallCollision: resolveWallCollisionFromLogic,
+  resolveSelfCollision: resolveSelfCollisionFromLogic,
+  calculateFoodScore,
+  applyGrowthOnEat: applyGrowthOnEatFromLogic,
+} = window.SnakeLogic;
 
 const BOARD_DEFAULTS = { cell: 28, cols: 20, rows: 20 };
 const STORAGE_KEYS = { best: 'snakeBest', hiScores: 'snakeHiScores' };
@@ -131,21 +141,11 @@ function rnd(n) {
 }
 
 function sumFx(key) {
-  let total = 0;
-  for (const [id, count] of Object.entries(playerPerks)) {
-    const fx = PERK_MAP[id].effects[key];
-    if (typeof fx === 'number') total += fx * count;
-  }
-  return total;
+  return sumFxFromLogic(playerPerks, PERK_MAP, key);
 }
 
 function xpReqProduct() {
-  let product = 1;
-  for (const [id, count] of Object.entries(playerPerks)) {
-    const fx = PERK_MAP[id].effects.xpReqMult;
-    if (fx != null) product *= Math.pow(fx, count);
-  }
-  return product;
+  return xpReqProductFromLogic(playerPerks, PERK_MAP);
 }
 
 function hasFx(key) {
@@ -153,14 +153,11 @@ function hasFx(key) {
 }
 
 function xpForLevel(level) {
-  const base = Math.ceil(5 * Math.pow(1.1, level - 1));
-  return Math.max(1, Math.round(base * xpReqProduct()));
+  return xpForLevelFromLogic(level, playerPerks, PERK_MAP);
 }
 
 function occupiedSet() {
-  const occupied = new Set(snake.map(part => part[0] + ',' + part[1]));
-  foods.forEach(food => occupied.add(food[0] + ',' + food[1]));
-  return occupied;
+  return occupiedSetFromLogic(snake, foods);
 }
 
 function spawnFoods() {
@@ -594,63 +591,69 @@ function endGame() {
 }
 
 function resolveWallCollision(head) {
-  if (head[0] >= 0 && head[0] < COLS && head[1] >= 0 && head[1] < ROWS) return true;
-  if (ghostWalls <= 0) {
+  const result = resolveWallCollisionFromLogic({
+    head,
+    cols: COLS,
+    rows: ROWS,
+    ghostWalls,
+    selfHitsLeft,
+    lastEatTime,
+    wallDamage: sumFx('wallDamage'),
+    comboNoReset: hasFx('comboNoReset'),
+  });
+
+  if (!result.alive && !result.wrapped) {
     endGame();
     return false;
   }
 
-  const prevEatTime = lastEatTime;
-  head[0] = (head[0] + COLS) % COLS;
-  head[1] = (head[1] + ROWS) % ROWS;
-  ghostWalls--;
+  head[0] = result.head[0];
+  head[1] = result.head[1];
+  ghostWalls = result.ghostWalls;
+  selfHitsLeft = result.selfHitsLeft;
+  lastEatTime = result.lastEatTime;
 
-  const wallDamage = sumFx('wallDamage');
-  if (wallDamage > 0) {
-    selfHitsLeft -= wallDamage;
-    spawnParticles(head[0], head[1], '#ff4466', 10);
-    if (selfHitsLeft <= 0) {
-      selfHitsLeft = 0;
-      endGame();
-      return false;
-    }
+  if (result.damaged) spawnParticles(head[0], head[1], '#ff4466', 10);
+  if (!result.alive) {
+    endGame();
+    return false;
   }
-
-  if (hasFx('comboNoReset')) lastEatTime = prevEatTime;
-  refreshEffects();
+  if (result.wrapped) refreshEffects();
   return true;
 }
 
 function resolveSelfCollision(head) {
-  const hitSelf = snake.some(part => part[0] === head[0] && part[1] === head[1]);
-  if (!hitSelf) return true;
-  if (selfHitsLeft <= 0) {
+  const result = resolveSelfCollisionFromLogic({ head, snake, selfHitsLeft });
+  if (!result.hitSelf) return true;
+  if (!result.alive) {
     endGame();
     return false;
   }
 
-  selfHitsLeft--;
+  selfHitsLeft = result.selfHitsLeft;
   spawnParticles(head[0], head[1], '#ff4444', 8);
   refreshEffects();
   return true;
 }
 
 function scoreFood(now) {
-  const comboWindow = BASE_COMBO_WINDOW + sumFx('comboWindow');
-  const maxCombo = 4 + sumFx('comboMax');
-  combo = (now - lastEatTime < comboWindow) ? Math.min(combo + 1, maxCombo) : 1;
-  lastEatTime = now;
+  const result = calculateFoodScore({
+    now,
+    lastEatTime,
+    combo,
+    speedActive,
+    forcedBurst: hasFx('forcedBurst'),
+    burstScoreMult,
+    bonusScore: sumFx('bonusScore'),
+    doubleScoreChance: sumFx('doubleScoreChance') / 100,
+    tripleScoreChance: sumFx('tripleScoreChance') / 100,
+    comboWindow: BASE_COMBO_WINDOW + sumFx('comboWindow'),
+    comboMaxBonus: sumFx('comboMax'),
+  });
 
-  const bonusPts = sumFx('bonusScore');
-  const isBurst = speedActive || hasFx('forcedBurst');
-  let points = combo * (isBurst ? burstScoreMult : 1) + bonusPts;
-
-  const doubleChance = sumFx('doubleScoreChance') / 100;
-  const tripleChance = sumFx('tripleScoreChance') / 100;
-  if (Math.random() < tripleChance) points *= 3;
-  else if (Math.random() < doubleChance) points *= 2;
-
-  score += Math.round(points);
+  combo = result.combo;
+  lastEatTime = result.lastEatTime;
+  score += result.points;
   DOM.score.textContent = score;
   if (score > best) {
     best = score;
@@ -668,16 +671,7 @@ function maybeTriggerBurst(now) {
 }
 
 function applyGrowthOnEat(levelsGained) {
-  if (levelsGained <= 0) {
-    snake.pop();
-    return;
-  }
-
-  const extraGrowth = sumFx('extraGrowth');
-  const totalGrowth = levelsGained * (1 + extraGrowth);
-  for (let i = 1; i < totalGrowth; i++) {
-    snake.push([...snake[snake.length - 1]]);
-  }
+  snake = applyGrowthOnEatFromLogic(snake, levelsGained, sumFx('extraGrowth'));
 }
 
 function handleFoodCollision(head, foodIdx, now) {

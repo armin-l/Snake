@@ -141,6 +141,64 @@ function applyGrowthOnEat(snake, levelsGained, extraGrowth) {
   return nextSnake;
 }
 
+function snapshotHiScoreDetails(level, playerPerks) {
+  const perks = Object.entries(playerPerks || {})
+    .filter(([, count]) => Number.isFinite(count) && count > 0)
+    .map(([id, count]) => ({ id, count: Math.max(1, Math.floor(count)) }))
+    .sort((left, right) => right.count - left.count || left.id.localeCompare(right.id));
+
+  return {
+    level: Number.isFinite(level) ? Math.max(1, Math.floor(level)) : 1,
+    perks,
+  };
+}
+
+function normalizeHiScorePerks(perks, perkMap) {
+  if (!Array.isArray(perks)) return [];
+
+  return perks.map(perk => {
+    if (!perk || typeof perk !== 'object') return null;
+
+    const id = typeof perk.id === 'string' ? perk.id : '';
+    const count = Number.isFinite(perk.count) ? Math.max(1, Math.floor(perk.count)) : 1;
+    const perkData = perkMap[id];
+
+    return {
+      id: id || 'unknown',
+      count,
+      name: perkData?.name || (typeof perk.name === 'string' && perk.name ? perk.name : id || 'Unknown perk'),
+      icon: perkData?.icon || (typeof perk.icon === 'string' && perk.icon ? perk.icon : '*'),
+      tier: perkData?.tier || (typeof perk.tier === 'string' && perk.tier ? perk.tier : 'common'),
+    };
+  }).filter(Boolean);
+}
+
+function normalizeHiScoreEntry(entry, perkMap) {
+  const score = Number.isFinite(entry?.score) ? Math.max(0, Math.floor(entry.score)) : 0;
+  const rawName = typeof entry?.name === 'string' ? entry.name.trim().toUpperCase() : '';
+  const level = Number.isFinite(entry?.level) ? Math.max(1, Math.floor(entry.level)) : null;
+  const perks = normalizeHiScorePerks(entry?.perks, perkMap);
+
+  return {
+    name: rawName || '???',
+    score,
+    level,
+    perks,
+    hasDetails: level != null || perks.length > 0,
+    fresh: !!entry?.fresh,
+  };
+}
+
+function normalizeHiScores(hiScores, maxEntries, perkMap) {
+  if (!Array.isArray(hiScores)) return [];
+
+  return hiScores
+    .map(entry => normalizeHiScoreEntry(entry, perkMap))
+    .filter(entry => entry.score > 0)
+    .sort((left, right) => right.score - left.score)
+    .slice(0, maxEntries);
+}
+
 window.SnakeLogic = {
   sumFx,
   xpReqProduct,
@@ -150,5 +208,8 @@ window.SnakeLogic = {
   resolveSelfCollision,
   calculateFoodScore,
   applyGrowthOnEat,
+  snapshotHiScoreDetails,
+  normalizeHiScoreEntry,
+  normalizeHiScores,
 };
 })();

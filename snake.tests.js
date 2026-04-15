@@ -201,6 +201,56 @@ const tests = [
     },
   },
   {
+    name: 'snapshotHiScoreDetails stores level and positive perk stacks',
+    run() {
+      const snapshot = Logic.snapshotHiScoreDetails(7, { ap_c1: 2, ww_r1: 1, bad: 0 });
+
+      assertEqual(snapshot.level, 7, 'snapshot should keep the reached level');
+      assertDeepEqual(snapshot.perks, [
+        { id: 'ap_c1', count: 2 },
+        { id: 'ww_r1', count: 1 },
+      ], 'snapshot should only keep positive perk stacks');
+    },
+  },
+  {
+    name: 'normalizeHiScoreEntry hydrates perk metadata and legacy fallback',
+    run() {
+      const legacy = Logic.normalizeHiScoreEntry({ name: 'aaa', score: 12 }, PERK_MAP);
+      const detailed = Logic.normalizeHiScoreEntry({
+        name: 'bbb',
+        score: 25,
+        level: 4,
+        perks: [{ id: 'ap_c1', count: 2 }],
+      }, PERK_MAP);
+
+      assertEqual(legacy.name, 'AAA', 'names should normalize to uppercase');
+      assertEqual(legacy.hasDetails, false, 'legacy entries should be marked without details');
+      assertEqual(detailed.hasDetails, true, 'detailed entries should advertise tooltip data');
+      assertDeepEqual(detailed.perks[0], {
+        id: 'ap_c1',
+        count: 2,
+        name: 'Appetite I',
+        icon: '🍎',
+        tier: 'common',
+      }, 'perk metadata should be hydrated from the perk map');
+    },
+  },
+  {
+    name: 'normalizeHiScores sorts, caps and drops invalid scores',
+    run() {
+      const hiScores = Logic.normalizeHiScores([
+        { name: 'aaa', score: 10 },
+        { name: 'bbb', score: 50, level: 6, perks: [{ id: 'ww_r1', count: 1 }] },
+        { name: 'ccc', score: 0, level: 2 },
+        { name: 'ddd', score: 30 },
+      ], 2, PERK_MAP);
+
+      assertEqual(hiScores.length, 2, 'highscores should cap to the configured amount');
+      assertEqual(hiScores[0].name, 'BBB', 'highest score should come first');
+      assertEqual(hiScores[1].name, 'DDD', 'second highest score should remain after trimming');
+    },
+  },
+  {
     name: 'calculateFoodScore applies double score when triple does not trigger',
     run() {
       const result = Logic.calculateFoodScore({

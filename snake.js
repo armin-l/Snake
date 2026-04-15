@@ -8,6 +8,8 @@ const {
   resolveSelfCollision: resolveSelfCollisionFromLogic,
   calculateFoodScore,
   applyGrowthOnEat: applyGrowthOnEatFromLogic,
+  snapshotHiScoreDetails: snapshotHiScoreDetailsFromLogic,
+  normalizeHiScores: normalizeHiScoresFromLogic,
 } = window.SnakeLogic;
 
 const BOARD_DEFAULTS = { cell: 28, cols: 20, rows: 20 };
@@ -92,6 +94,70 @@ const DOM = {
 const ctx = DOM.canvas.getContext('2d');
 const nameChars = [DOM.nc0, DOM.nc1, DOM.nc2];
 
+function readStoredHiScores() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.hiScores) || '[]');
+    return normalizeHiScoresFromLogic(raw, HS_MAX, PERK_MAP);
+  } catch {
+    return [];
+  }
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, char => {
+    if (char === '&') return '&amp;';
+    if (char === '<') return '&lt;';
+    if (char === '>') return '&gt;';
+    if (char === '"') return '&quot;';
+    return '&#39;';
+  });
+}
+
+function serializeHiScoreEntry(entry) {
+  return {
+    name: entry.name,
+    score: entry.score,
+    level: entry.level,
+    perks: entry.perks.map(perk => ({ id: perk.id, count: perk.count })),
+  };
+}
+
+function persistHiScores() {
+  localStorage.setItem(
+    STORAGE_KEYS.hiScores,
+    JSON.stringify(hiScores.map(serializeHiScoreEntry))
+  );
+}
+
+function buildCurrentHiScoreSnapshot() {
+  return snapshotHiScoreDetailsFromLogic(playerLevel, playerPerks);
+}
+
+function getHiScoreTierClass(tier) {
+  return TIER_ORDER.includes(tier) ? tier : 'common';
+}
+
+function renderHiScoreTooltip(entry) {
+  const levelMarkup = entry.level != null
+    ? `<div class="hs-tooltip-line"><span class="hs-tooltip-label">LEVEL</span><strong class="hs-tooltip-value">${entry.level}</strong></div>`
+    : '<div class="hs-tooltip-empty">Legacy score</div>';
+
+  const perksMarkup = entry.perks.length > 0
+    ? `<div class="hs-tooltip-label hs-tooltip-section">PERKS</div><div class="hs-tooltip-perks">${entry.perks.map(perk => {
+      const tierClass = getHiScoreTierClass(perk.tier);
+      const countMarkup = perk.count > 1 ? `<span class="hs-tooltip-count">x${perk.count}</span>` : '';
+      return `<span class="hs-tooltip-perk hs-tooltip-tier-${tierClass}">` +
+        `<span class="hs-tooltip-icon">${escapeHtml(perk.icon)}</span>` +
+        `<span class="hs-tooltip-name">${escapeHtml(perk.name)}</span>` +
+        countMarkup +
+        `</span>`;
+    }).join('')}</div>`
+    : `<div class="hs-tooltip-empty">${entry.level != null ? 'No perks collected' : 'No run details saved'}</div>`;
+
+  return `<span class="hs-detail-pill" aria-hidden="true">i</span>` +
+    `<span class="hs-tooltip" role="tooltip">${levelMarkup}${perksMarkup}</span>`;
+}
+
 let CELL = BOARD_DEFAULTS.cell;
 let COLS = BOARD_DEFAULTS.cols;
 let ROWS = BOARD_DEFAULTS.rows;
@@ -119,7 +185,7 @@ let playerLevel;
 let playerPerks;
 let selfHitsLeft;
 let pendingLevelUps;
-let hiScores = JSON.parse(localStorage.getItem(STORAGE_KEYS.hiScores) || '[]');
+let hiScores = readStoredHiScores();
 let lastTime = 0;
 let accumulated = 0;
 let touchStartX = 0;
@@ -547,13 +613,12 @@ function qualifiesForHiScore(value) {
 }
 
 function saveHiScore(name, value) {
-  hiScores.push({ name: name.toUpperCase(), score: value, fresh: true });
-  hiScores.sort((a, b) => b.score - a.score);
-  if (hiScores.length > HS_MAX) hiScores.length = HS_MAX;
-  localStorage.setItem(
-    STORAGE_KEYS.hiScores,
-    JSON.stringify(hiScores.map(entry => ({ name: entry.name, score: entry.score })))
-  );
+  const snapshot = buildCurrentHiScoreSnapshot();
+  hiScores = normalizeHiScoresFromLogic([
+    ...hiScores,
+    { name: name.toUpperCase(), score: value, level: snapshot.level, perks: snapshot.perks, fresh: true },
+  ], HS_MAX, PERK_MAP);
+  persistHiScores();
 }
 
 function renderHiScores() {
@@ -569,9 +634,10 @@ function renderHiScores() {
     else if (index === 2) className += ' hs-third';
     if (entry.fresh) className += ' hs-new';
 
-    return `<div class="${className}">` +
+    return `<div class="${className}" tabindex="0">` +
       `<span class="hs-rank">${index + 1}.</span>` +
       `<span class="hs-name">${entry.name || '???'}</span>` +
+      `<span class="hs-detail">${renderHiScoreTooltip(entry)}</span>` +
       `<span class="hs-score">${entry.score}</span>` +
       `</div>`;
   }).join('');

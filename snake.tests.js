@@ -55,6 +55,14 @@ const tests = [
     },
   },
   {
+    name: 'xpForLevel never drops below one XP',
+    run() {
+      const playerPerks = { sc_cu1: 1, xs_e1: 1, xr_r1: 2 };
+      const needed = Logic.xpForLevel(1, playerPerks, PERK_MAP);
+      assertEqual(needed, 1, 'extreme XP discounts should still clamp to at least one XP');
+    },
+  },
+  {
     name: 'occupiedSet merges snake and food positions uniquely',
     run() {
       const occupied = Logic.occupiedSet([[1, 1], [2, 1], [2, 2]], [[2, 2], [3, 4]]);
@@ -102,6 +110,26 @@ const tests = [
     },
   },
   {
+    name: 'resolveWallCollision can wrap and still die from wall damage',
+    run() {
+      const result = Logic.resolveWallCollision({
+        head: [7, -1],
+        cols: 20,
+        rows: 20,
+        ghostWalls: 1,
+        selfHitsLeft: 2,
+        lastEatTime: 1250,
+        wallDamage: 3,
+        comboNoReset: false,
+      });
+
+      assertEqual(result.wrapped, true, 'wall pass should still wrap before damage is applied');
+      assertEqual(result.alive, false, 'excess wall damage should still be fatal after wrapping');
+      assertEqual(result.selfHitsLeft, 0, 'shield count should bottom out at zero');
+      assertDeepEqual(result.head, [7, 19], 'head should wrap to the opposite edge before death is resolved');
+    },
+  },
+  {
     name: 'resolveSelfCollision consumes a shield when available',
     run() {
       const result = Logic.resolveSelfCollision({
@@ -112,6 +140,20 @@ const tests = [
 
       assertEqual(result.alive, true, 'self collision should survive with spare shields');
       assertEqual(result.selfHitsLeft, 1, 'one self-hit shield should be consumed');
+    },
+  },
+  {
+    name: 'resolveSelfCollision is fatal without shields',
+    run() {
+      const result = Logic.resolveSelfCollision({
+        head: [4, 4],
+        snake: [[5, 4], [4, 4], [3, 4]],
+        selfHitsLeft: 0,
+      });
+
+      assertEqual(result.hitSelf, true, 'collision should still be detected without shields');
+      assertEqual(result.alive, false, 'self collision should be fatal when no shield remains');
+      assertEqual(result.shieldUsed, false, 'fatal collision should not report a shield usage');
     },
   },
   {
@@ -159,6 +201,50 @@ const tests = [
     },
   },
   {
+    name: 'calculateFoodScore applies double score when triple does not trigger',
+    run() {
+      const result = Logic.calculateFoodScore({
+        now: 1800,
+        lastEatTime: 1500,
+        combo: 1,
+        speedActive: true,
+        forcedBurst: false,
+        burstScoreMult: 3,
+        bonusScore: 2,
+        doubleScoreChance: 0.4,
+        tripleScoreChance: 0.1,
+        comboWindow: 1000,
+        comboMaxBonus: 0,
+        random: sequenceRandom([0.8, 0.2]),
+      });
+
+      assertEqual(result.combo, 2, 'combo should still progress inside the combo window');
+      assertEqual(result.points, 16, 'double score should apply when triple misses and double hits');
+    },
+  },
+  {
+    name: 'calculateFoodScore respects the extended combo cap',
+    run() {
+      const result = Logic.calculateFoodScore({
+        now: 2200,
+        lastEatTime: 2000,
+        combo: 7,
+        speedActive: false,
+        forcedBurst: false,
+        burstScoreMult: 1,
+        bonusScore: 0,
+        doubleScoreChance: 0,
+        tripleScoreChance: 0,
+        comboWindow: 1000,
+        comboMaxBonus: 2,
+        random: sequenceRandom([0.9, 0.9]),
+      });
+
+      assertEqual(result.combo, 6, 'combo should clamp to base cap 4 plus the bonus cap');
+      assertEqual(result.points, 6, 'points should reflect the capped combo value');
+    },
+  },
+  {
     name: 'applyGrowthOnEat adds cursed extra growth on level up',
     run() {
       const snake = [[6, 5], [5, 5], [4, 5], [3, 5]];
@@ -173,6 +259,15 @@ const tests = [
       const snake = [[6, 5], [5, 5], [4, 5], [3, 5]];
       const next = Logic.applyGrowthOnEat(snake, 0, 5);
       assertDeepEqual(next, [[6, 5], [5, 5], [4, 5]], 'no level-up should behave like a normal move and remove the tail');
+    },
+  },
+  {
+    name: 'applyGrowthOnEat scales growth with multiple level-ups',
+    run() {
+      const snake = [[6, 5], [5, 5], [4, 5], [3, 5]];
+      const grown = Logic.applyGrowthOnEat(snake, 2, 2);
+      assertEqual(grown.length, 9, 'two level-ups with +2 extra growth should add five segments total');
+      assertDeepEqual(grown.slice(-3), [[3, 5], [3, 5], [3, 5]], 'added growth should continue duplicating the tail');
     },
   },
 ];

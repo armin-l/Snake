@@ -108,7 +108,7 @@ let xpNeeded;
 let playerLevel;
 let playerPerks;
 let selfHitsLeft;
-let levelUpPending;
+let pendingLevelUps;
 let hiScores = JSON.parse(localStorage.getItem(STORAGE_KEYS.hiScores) || '[]');
 let lastTime = 0;
 let accumulated = 0;
@@ -222,7 +222,7 @@ function init() {
   playerLevel = 1;
   playerPerks = {};
   selfHitsLeft = 0;
-  levelUpPending = false;
+  pendingLevelUps = 0;
   running = false;
   paused = false;
   particles = [];
@@ -253,15 +253,23 @@ function refreshXPBar() {
 }
 
 function gainXP(amount) {
+  let levelsGained = 0;
   xp += amount;
   while (xp >= xpNeeded) {
     xp -= xpNeeded;
     playerLevel++;
     DOM.level.textContent = playerLevel;
     xpNeeded = xpForLevel(playerLevel);
-    levelUpPending = true;
+    pendingLevelUps++;
+    levelsGained++;
   }
   refreshXPBar();
+  return levelsGained;
+}
+
+function getShownLevelUpValue() {
+  if (pendingLevelUps <= 0) return playerLevel;
+  return playerLevel - pendingLevelUps + 1;
 }
 
 function pickTier() {
@@ -306,7 +314,7 @@ function renderPerkCard(perk, index) {
 
 function showLevelUp() {
   paused = true;
-  DOM.luLevel.textContent = playerLevel;
+  DOM.luLevel.textContent = getShownLevelUpValue();
   const excluded = new Set();
   const chosen = [];
 
@@ -331,8 +339,12 @@ function showLevelUp() {
 
 function selectPerk(id) {
   applyPerk(id);
+  pendingLevelUps = Math.max(0, pendingLevelUps - 1);
+  if (pendingLevelUps > 0) {
+    showLevelUp();
+    return;
+  }
   DOM.levelupOverlay.style.display = 'none';
-  levelUpPending = false;
   paused = false;
 }
 
@@ -655,10 +667,15 @@ function maybeTriggerBurst(now) {
   burstScoreMult = 1 + sumFx('burstScoreMult');
 }
 
-function applyGrowthOnEat() {
+function applyGrowthOnEat(levelsGained) {
+  if (levelsGained <= 0) {
+    snake.pop();
+    return;
+  }
+
   const extraGrowth = sumFx('extraGrowth');
-  if (!levelUpPending) snake.pop();
-  for (let i = 0; i < extraGrowth; i++) {
+  const totalGrowth = levelsGained * (1 + extraGrowth);
+  for (let i = 1; i < totalGrowth; i++) {
     snake.push([...snake[snake.length - 1]]);
   }
 }
@@ -670,9 +687,9 @@ function handleFoodCollision(head, foodIdx, now) {
   spawnFoods();
   maybeTriggerBurst(now);
   ghostWalls = maxGhostWalls;
-  gainXP(1 + sumFx('bonusXP'));
+  const levelsGained = gainXP(1 + sumFx('bonusXP'));
   refreshEffects();
-  applyGrowthOnEat();
+  applyGrowthOnEat(levelsGained);
 }
 
 function step() {
@@ -692,9 +709,8 @@ function step() {
     snake.pop();
   }
 
-  if (levelUpPending) {
+  if (pendingLevelUps > 0) {
     showLevelUp();
-    levelUpPending = false;
   }
 }
 

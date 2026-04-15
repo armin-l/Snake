@@ -1,0 +1,1672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Snake</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+      color: #eee;
+      user-select: none;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      letter-spacing: 0.2em;
+      margin-bottom: 12px;
+      color: #4ecca3;
+      text-shadow: 0 0 20px #4ecca355;
+    }
+
+    #scoreboard {
+      display: flex;
+      gap: 40px;
+      margin-bottom: 16px;
+      font-size: 1rem;
+      letter-spacing: 0.1em;
+    }
+
+    #scoreboard span { color: #4ecca3; font-weight: bold; font-size: 1.3rem; }
+
+    #game-area {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+    }
+
+    #canvas-wrapper {
+      position: relative;
+      border: 2px solid #4ecca355;
+      border-radius: 6px;
+      box-shadow: 0 0 40px #4ecca322;
+    }
+
+    #pu-legend {
+      width: 168px;
+      background: #0f0f23;
+      border: 1px solid #4ecca322;
+      border-radius: 8px;
+      padding: 14px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    #pu-legend h3 {
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      color: #4ecca3;
+      text-transform: uppercase;
+      border-bottom: 1px solid #4ecca322;
+      padding-bottom: 8px;
+      margin-bottom: 0;
+    }
+
+    .pu-entry {
+      font-size: 0.7rem;
+      color: #556;
+      line-height: 1.5;
+    }
+
+    canvas { display: block; border-radius: 4px; }
+
+    #overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 10, 30, 0.82);
+      border-radius: 4px;
+      gap: 14px;
+    }
+
+    #overlay h2 { font-size: 2rem; color: #4ecca3; }
+    #overlay p  { font-size: 1rem; color: #aaa; }
+
+    #overlay button {
+      margin-top: 8px;
+      padding: 10px 32px;
+      font-size: 1rem;
+      background: #4ecca3;
+      color: #1a1a2e;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      font-weight: bold;
+      letter-spacing: 0.08em;
+      transition: transform 0.1s, box-shadow 0.1s;
+      box-shadow: 0 0 14px #4ecca388;
+    }
+
+    #overlay button:hover { transform: scale(1.06); box-shadow: 0 0 22px #4ecca3cc; }
+
+    #controls {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: repeat(3, 48px);
+      grid-template-rows: repeat(2, 48px);
+      gap: 6px;
+    }
+
+    .ctrl-btn {
+      width: 48px;
+      height: 48px;
+      background: #16213e;
+      border: 1px solid #4ecca355;
+      border-radius: 8px;
+      color: #4ecca3;
+      font-size: 1.3rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.1s;
+    }
+
+    .ctrl-btn:active { background: #4ecca322; }
+    #btn-up    { grid-column: 2; grid-row: 1; }
+    #btn-left  { grid-column: 1; grid-row: 2; }
+    #btn-down  { grid-column: 2; grid-row: 2; }
+    #btn-right { grid-column: 3; grid-row: 2; }
+
+    #hint { margin-top: 14px; font-size: 0.8rem; color: #555; }
+
+    #effects-bar {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      height: 36px;
+      align-items: center;
+      justify-content: center;
+    }
+    .effect-badge {
+      position: relative;
+      padding: 4px 14px 4px 14px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      letter-spacing: 0.06em;
+      overflow: hidden;
+      animation: badgePop 0.2s ease;
+      min-width: 110px;
+      text-align: center;
+    }
+    .badge-speed { background: #003a5e; border: 1px solid #00bfff88; color: #00bfff; }
+    .badge-ghost { background: #2a0050; border: 1px solid #bf7fff88; color: #bf7fff; }
+    .badge-combo { background: #3a2000; border: 1px solid #ffd70088; color: #ffd700; }
+    .badge-label { position: relative; z-index: 1; display: block; margin-bottom: 3px; }
+    .badge-bar-track {
+      position: relative;
+      z-index: 1;
+      height: 3px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.12);
+      overflow: hidden;
+    }
+    .badge-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.12s linear;
+    }
+    .badge-speed .badge-bar-fill { background: #00bfff; box-shadow: 0 0 6px #00bfffaa; }
+    .badge-ghost .badge-bar-fill { background: #bf7fff; box-shadow: 0 0 6px #bf7fffaa; }
+    .badge-combo .badge-bar-fill { background: #ffd700; box-shadow: 0 0 6px #ffd700aa; }
+    @keyframes badgePop {
+      from { transform: scale(0.6); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+
+    /* XP bar */
+    #xp-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      font-size: 0.78rem;
+      color: #556;
+      letter-spacing: 0.08em;
+    }
+    #xp-track {
+      flex: 1;
+      max-width: 220px;
+      height: 7px;
+      background: #1e1e3a;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    #xp-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4ecca3, #38b28a);
+      border-radius: 4px;
+      width: 0%;
+      transition: width 0.25s ease;
+      box-shadow: 0 0 8px #4ecca388;
+    }
+    #xp-nums { color: #4ecca3aa; font-size: 0.72rem; }
+
+    /* resilience badge */
+    .badge-resilience {
+      background: #0f2a1a;
+      border: 1px solid #66ff8888;
+      color: #66ff88;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+
+    /* level-up overlay */
+    #levelup-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 10, 30, 0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      backdrop-filter: blur(4px);
+    }
+    #levelup-modal {
+      background: #12122a;
+      border: 1px solid #4ecca355;
+      border-radius: 14px;
+      padding: 36px 32px 28px;
+      text-align: center;
+      max-width: 640px;
+      width: 95vw;
+      box-shadow: 0 0 60px #4ecca322;
+    }
+    #levelup-modal h2 {
+      font-size: 2rem;
+      color: #4ecca3;
+      letter-spacing: 0.2em;
+      text-shadow: 0 0 24px #4ecca355;
+      margin-bottom: 6px;
+    }
+    #levelup-modal > p { color: #778; font-size: 0.9rem; margin-bottom: 4px; }
+    #perk-cards {
+      display: flex;
+      gap: 14px;
+      margin: 20px 0 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .perk-card {
+      flex: 1;
+      min-width: 140px;
+      max-width: 172px;
+      background: #0e0e22;
+      border: 2px solid #2a2a4a;
+      border-radius: 12px;
+      padding: 18px 12px 16px;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+      text-align: center;
+    }
+    .perk-card:hover {
+      border-color: var(--perk-color);
+      transform: translateY(-6px);
+      box-shadow: 0 10px 28px var(--perk-shadow);
+    }
+    .perk-shortcut {
+      display: inline-block;
+      font-size: 0.65rem;
+      background: #1e1e38;
+      color: #556;
+      padding: 2px 7px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      letter-spacing: 0.1em;
+    }
+    .perk-icon { font-size: 2.2rem; margin-bottom: 10px; line-height: 1; }
+    .perk-name {
+      font-size: 0.82rem;
+      font-weight: bold;
+      letter-spacing: 0.1em;
+      color: var(--perk-color);
+      margin-bottom: 5px;
+      text-shadow: 0 0 10px var(--perk-shadow);
+    }
+    .perk-rank { font-size: 0.66rem; color: #445; margin-bottom: 8px; min-height: 14px; }
+    .perk-desc { font-size: 0.73rem; color: #99a; line-height: 1.55; }
+    .lu-hint { font-size: 0.72rem; color: #445; letter-spacing: 0.08em; margin-top: 4px; }
+
+    /* tier badges on perk cards */
+    .perk-tier {
+      display: inline-block;
+      font-size: 0.6rem;
+      font-weight: bold;
+      letter-spacing: 0.14em;
+      padding: 2px 8px;
+      border-radius: 20px;
+      margin-bottom: 8px;
+    }
+    .tier-common  { background: #1e1e1e; border: 1px solid #666; color: #aaa; }
+    .tier-rare    { background: #0d1a33; border: 1px solid #1a6fcc; color: #4d9fff; }
+    .tier-epic    { background: #1a0033; border: 1px solid #8800bb; color: #cc44ff;
+                    box-shadow: 0 0 8px #cc44ff44; }
+    .tier-cursed    { background: #200010; border: 1px solid #cc0033; color: #ff4466;
+                      box-shadow: 0 0 10px #ff446655; text-shadow: 0 0 8px #ff446688; }
+    .tier-legendary { background: #1a1400; border: 1px solid #ffd700; color: #ffe566;
+                      box-shadow: 0 0 14px #ffd70077; text-shadow: 0 0 10px #ffd700aa;
+                      animation: legendaryPulse 1.8s ease-in-out infinite; }
+    @keyframes legendaryPulse {
+      0%, 100% { box-shadow: 0 0 10px #ffd70055; }
+      50%       { box-shadow: 0 0 22px #ffd700cc, 0 0 40px #ffd70033; }
+    }
+
+    /* active perks list in sidebar */
+    #perk-summary h3 {
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      color: #4ecca3;
+      text-transform: uppercase;
+      border-bottom: 1px solid #4ecca322;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+    }
+    #active-perks { font-size: 0.68rem; line-height: 1.8; }
+    .ap-common  { color: #999; }
+    .ap-rare    { color: #4d9fff; }
+    .ap-epic    { color: #cc44ff; }
+    .ap-cursed     { color: #ff4466; text-shadow: 0 0 6px #ff446666; }
+    .ap-legendary  { color: #ffe566; text-shadow: 0 0 8px #ffd700aa; font-weight: bold; }
+
+    /* dev perk picker */
+    #dev-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10,10,30,0.94);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      backdrop-filter: blur(4px);
+    }
+    #dev-modal {
+      background: #12122a;
+      border: 1px solid #4ecca355;
+      border-radius: 14px;
+      padding: 22px 24px 20px;
+      width: min(96vw, 900px);
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 0 60px #4ecca322;
+    }
+    #dev-modal h2 { font-size: 1rem; color: #4ecca3; letter-spacing: 0.2em; margin: 0; }
+    #dev-search {
+      background: #0e0e22;
+      border: 1px solid #4ecca344;
+      border-radius: 8px;
+      padding: 6px 12px;
+      color: #eee;
+      font-size: 0.8rem;
+      outline: none;
+      width: 100%;
+    }
+    #dev-perk-list {
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .dev-perk-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.1s;
+      font-size: 0.78rem;
+    }
+    .dev-perk-row:hover { background: #1e1e3a; }
+    .dev-perk-row .dp-icon { font-size: 1.1rem; width: 22px; text-align: center; }
+    .dev-perk-row .dp-tier { font-size: 0.6rem; font-weight: bold; letter-spacing: 0.12em;
+      padding: 1px 6px; border-radius: 10px; flex-shrink: 0; }
+    .dev-perk-row .dp-name { flex: 1; color: #dde; font-weight: bold; }
+    .dev-perk-row .dp-desc { color: #667; font-size: 0.72rem; }
+    .dev-perk-row .dp-count { color: #445; font-size: 0.68rem; min-width: 32px; text-align: right; }
+    #dev-close {
+      align-self: flex-end;
+      background: none;
+      border: 1px solid #4ecca344;
+      border-radius: 6px;
+      color: #4ecca3;
+      padding: 4px 16px;
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+
+    /* ── Retro High Score Panel ── */
+    #hiscore-panel {
+      width: 156px;
+      background: #060610;
+      border: 2px solid #4ecca355;
+      border-radius: 8px;
+      padding: 14px 12px;
+      font-family: 'Courier New', monospace;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    #hiscore-panel::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg, transparent, transparent 2px,
+        rgba(0,0,0,0.14) 2px, rgba(0,0,0,0.14) 4px
+      );
+      pointer-events: none;
+      border-radius: 6px;
+    }
+
+    #hiscore-panel h3 {
+      font-size: 0.6rem;
+      letter-spacing: 0.22em;
+      color: #4ecca3;
+      text-transform: uppercase;
+      text-align: center;
+      margin-bottom: 12px;
+      border-bottom: 1px solid #4ecca333;
+      padding-bottom: 8px;
+      text-shadow: 0 0 10px #4ecca3;
+    }
+
+    .hs-row {
+      display: flex;
+      align-items: center;
+      font-size: 0.64rem;
+      letter-spacing: 0.1em;
+      padding: 3px 0;
+      color: #4ecca377;
+      font-family: 'Courier New', monospace;
+    }
+
+    .hs-row.hs-first  { color: #ffd700; text-shadow: 0 0 8px #ffd70099; }
+    .hs-row.hs-second { color: #c0c0c0; text-shadow: 0 0 6px #c0c0c066; }
+    .hs-row.hs-third  { color: #cd7f32; text-shadow: 0 0 6px #cd7f3266; }
+    .hs-row.hs-new {
+      color: #ff6b35 !important;
+      text-shadow: 0 0 8px #ff6b3599 !important;
+      animation: hsNewBlink 0.7s ease-in-out infinite alternate;
+    }
+
+    @keyframes hsNewBlink {
+      from { opacity: 1; }
+      to   { opacity: 0.4; }
+    }
+
+    .hs-rank  { width: 18px; font-size: 0.56rem; color: #446; }
+    .hs-name  { flex: 1; padding: 0 5px; letter-spacing: 0.2em; }
+    .hs-score { text-align: right; font-size: 0.62rem; }
+
+    /* ── Name Entry Overlay ── */
+    #name-entry-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(6, 6, 20, 0.96);
+      border-radius: 4px;
+      gap: 12px;
+      z-index: 20;
+      font-family: 'Courier New', monospace;
+    }
+
+    #name-entry-overlay .ne-title {
+      font-size: 1.4rem;
+      color: #4ecca3;
+      letter-spacing: 0.25em;
+      text-shadow: 0 0 20px #4ecca388;
+      animation: neTitlePulse 1s ease-in-out infinite alternate;
+    }
+
+    @keyframes neTitlePulse {
+      from { text-shadow: 0 0 12px #4ecca3aa; }
+      to   { text-shadow: 0 0 32px #4ecca3ff, 0 0 60px #4ecca344; }
+    }
+
+    #ne-rank-line {
+      font-size: 0.72rem;
+      color: #ffd700;
+      letter-spacing: 0.16em;
+      text-shadow: 0 0 8px #ffd70066;
+    }
+
+    #ne-instructions {
+      font-size: 0.62rem;
+      color: #556;
+      letter-spacing: 0.12em;
+    }
+
+    .name-input-row { display: flex; gap: 10px; }
+
+    .name-char {
+      width: 46px;
+      height: 58px;
+      background: #090918;
+      border: 2px solid #4ecca355;
+      border-radius: 6px;
+      color: #4ecca3;
+      font-family: 'Courier New', monospace;
+      font-size: 2rem;
+      font-weight: bold;
+      text-align: center;
+      text-transform: uppercase;
+      outline: none;
+      caret-color: transparent;
+      text-shadow: 0 0 10px #4ecca3;
+      box-shadow: inset 0 0 8px #4ecca311;
+    }
+
+    .name-char:focus {
+      border-color: #4ecca3cc;
+      box-shadow: 0 0 14px #4ecca355, inset 0 0 8px #4ecca311;
+    }
+
+    #name-confirm-btn {
+      margin-top: 4px;
+      padding: 9px 30px;
+      font-size: 0.9rem;
+      background: #4ecca3;
+      color: #1a1a2e;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      font-weight: bold;
+      letter-spacing: 0.12em;
+      font-family: 'Segoe UI', sans-serif;
+      box-shadow: 0 0 16px #4ecca388;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+
+    #name-confirm-btn:hover { transform: scale(1.06); box-shadow: 0 0 24px #4ecca3cc; }
+  </style>
+</head>
+<body>
+
+<h1>SNAKE</h1>
+
+<div id="scoreboard">
+  <div>SCORE &nbsp;<span id="score">0</span></div>
+  <div>LEVEL &nbsp;<span id="level-el">1</span></div>
+  <div>BEST &nbsp;<span id="best">0</span></div>
+</div>
+
+<div id="xp-bar-row">
+  <span>XP</span>
+  <div id="xp-track"><div id="xp-fill"></div></div>
+  <span id="xp-nums">0 / 5</span>
+</div>
+
+<div id="game-area">
+
+<aside id="hiscore-panel">
+  <h3>HIGH SCORES</h3>
+  <div id="hs-list"></div>
+</aside>
+
+<div id="canvas-wrapper">
+  <canvas id="c"></canvas>
+
+  <div id="overlay">
+    <h2 id="overlay-title">SNAKE</h2>
+    <p id="overlay-msg">Use arrow keys or WASD to move</p>
+    <button id="start-btn">START</button>
+  </div>
+
+  <div id="name-entry-overlay" style="display:none">
+    <div class="ne-title">HIGH SCORE!</div>
+    <div id="ne-rank-line">RANK #<span id="ne-rank">1</span></div>
+    <p id="ne-instructions">ENTER YOUR INITIALS</p>
+    <div class="name-input-row">
+      <input class="name-char" id="nc0" maxlength="1" autocomplete="off" spellcheck="false" />
+      <input class="name-char" id="nc1" maxlength="1" autocomplete="off" spellcheck="false" />
+      <input class="name-char" id="nc2" maxlength="1" autocomplete="off" spellcheck="false" />
+    </div>
+    <button id="name-confirm-btn">OK</button>
+  </div>
+</div>
+
+<aside id="pu-legend">
+  <h3>Info</h3>
+
+  <div class="pu-entry">
+    <strong style="color:#4ecca388; font-size:0.72rem;">COMBO</strong><br>
+    Eat within 2.5&nbsp;s for a &#215;2&ndash; score multiplier.
+  </div>
+
+  <div class="pu-entry">
+    <strong style="color:#7ed6ff; font-size:0.72rem;">LEVEL UP</strong><br>
+    Fill the XP bar to pick 1 permanent perk upgrade.
+  </div>
+
+  <div class="pu-entry">
+    <strong style="color:#ffd166; font-size:0.72rem;">PERK TIERS</strong><br>
+    Common is safe. Rare, epic and legendary are stronger. Cursed can bite back.
+  </div>
+
+  <div class="pu-entry">
+    <strong style="color:#cdb4ff; font-size:0.72rem;">CONTROLS</strong><br>
+    Arrow keys or WASD to move. Press P any time to pause.
+  </div>
+
+  <div id="perk-summary" style="margin-top:10px; border-top:1px solid #4ecca318; padding-top:12px;">
+    <h3>Perks</h3>
+    <div id="active-perks" style="color:#445;">—</div>
+  </div>
+</aside>
+
+</div>
+
+<div id="effects-bar"></div>
+
+<div id="controls">
+  <button class="ctrl-btn" id="btn-up">&#9650;</button>
+  <button class="ctrl-btn" id="btn-left">&#9664;</button>
+  <button class="ctrl-btn" id="btn-down">&#9660;</button>
+  <button class="ctrl-btn" id="btn-right">&#9654;</button>
+</div>
+
+<p id="hint">Arrow keys / WASD &nbsp;|&nbsp; P to pause</p>
+
+<button id="dev-perk-btn" style="margin-top:10px;padding:6px 18px;background:#1a1a2e;border:1px solid #4ecca355;border-radius:20px;color:#4ecca3;font-size:0.75rem;cursor:pointer;letter-spacing:0.08em;">DEV: Trigger Perk</button>
+
+<div id="dev-overlay" style="display:none">
+  <div id="dev-modal">
+    <h2>DEV — PICK A PERK</h2>
+    <input id="dev-search" type="text" placeholder="Search…" autocomplete="off" />
+    <div id="dev-perk-list"></div>
+    <button id="dev-close">CLOSE</button>
+  </div>
+</div>
+
+<div id="levelup-overlay" style="display:none">
+  <div id="levelup-modal">
+    <h2>LEVEL <span id="lu-level">2</span>!</h2>
+    <p>You gained a level — choose a permanent upgrade</p>
+    <div id="perk-cards"></div>
+    <p class="lu-hint">Press 1 · 2 · 3 or click a card</p>
+  </div>
+</div>
+
+<script>
+  // ── canvas setup ──
+  let CELL = 28;
+  let COLS = 20, ROWS = 20;
+  const canvas = document.getElementById('c');
+  const ctx    = canvas.getContext('2d');
+
+  function recomputeCell() {
+    // Available space: viewport minus sidebar (168px + 20px gap) and surrounding UI (~360px vertical)
+    const availW = window.innerWidth  - 228;
+    const availH = window.innerHeight - 360;
+    CELL = Math.max(8, Math.min(28, Math.floor(availW / COLS), Math.floor(availH / ROWS)));
+    canvas.width  = COLS * CELL;
+    canvas.height = ROWS * CELL;
+  }
+  recomputeCell();
+
+  const overlay        = document.getElementById('overlay');
+  const overlayTitle   = document.getElementById('overlay-title');
+  const overlayMsg     = document.getElementById('overlay-msg');
+  const startBtn       = document.getElementById('start-btn');
+  const scoreEl        = document.getElementById('score');
+  const bestEl         = document.getElementById('best');
+  const levelEl        = document.getElementById('level-el');
+  const effectsBar     = document.getElementById('effects-bar');
+  const xpFill         = document.getElementById('xp-fill');
+  const xpNums         = document.getElementById('xp-nums');
+  const levelupOverlay = document.getElementById('levelup-overlay');
+  const perkCardsEl    = document.getElementById('perk-cards');
+  const luLevelEl      = document.getElementById('lu-level');
+  const activePerksEl  = document.getElementById('active-perks');
+
+  const DIR = { UP:[0,-1], DOWN:[0,1], LEFT:[-1,0], RIGHT:[1,0] };
+
+  // ── perk definitions: 60 common · 30 rare · 9 epic · 8 cursed · 1 legendary ──
+  // effects keys:
+  //   shrink, bonusScore, doubleScoreChance, tripleScoreChance,
+  //   comboWindow, comboMax, comboNoReset,
+  //   selfHits, wallPasses,
+  //   burstChance, burstDuration, burstScoreMult,
+  //   extraFood, boardExpand:{dx,dy},
+  //   bonusXP, xpReqMult
+  const PERKS = [
+    // ════════════════ COMMON (60) ════════════════
+    // Size reduction (12)
+    { id:'sw_c1',  tier:'common', name:'Slim I',       icon:'🪶', color:'#4ecca3', shadow:'#1a6650', effects:{ shrink:1 }, desc:'-1 body segment instantly' },
+    { id:'sw_c2',  tier:'common', name:'Slim II',      icon:'🪶', color:'#4ecca3', shadow:'#1a6650', effects:{ shrink:1 }, desc:'-1 body segment instantly' },
+    { id:'qs_c1',  tier:'common', name:'Lean I',       icon:'🌿', color:'#4ecca3', shadow:'#1a6650', effects:{ shrink:1 }, desc:'-1 body segment instantly' },
+    { id:'qs_c2',  tier:'common', name:'Lean II',      icon:'🌿', color:'#4ecca3', shadow:'#1a6650', effects:{ shrink:1 }, desc:'-1 body segment instantly' },
+    { id:'lf_c1',  tier:'common', name:'Trim I',       icon:'✂️', color:'#4ecca3', shadow:'#1a6650', effects:{ shrink:1 }, desc:'-1 body segment instantly' },
+    { id:'nb_c1',  tier:'common', name:'Compact I',    icon:'🔽', color:'#38d4a8', shadow:'#1a6650', effects:{ shrink:1 }, desc:'-1 body segment instantly' },
+    { id:'nb_c2',  tier:'common', name:'Compact II',   icon:'🔽', color:'#38d4a8', shadow:'#1a6650', effects:{ shrink:1 }, desc:'-1 body segment instantly' },
+    { id:'da_c1',  tier:'common', name:'Shrink I',     icon:'📉', color:'#38d4a8', shadow:'#1a6650', effects:{ shrink:1 }, desc:'-1 body segment instantly' },
+    { id:'da_c2',  tier:'common', name:'Shrink II',    icon:'📉', color:'#38d4a8', shadow:'#1a6650', effects:{ shrink:1 }, desc:'-1 body segment instantly' },
+    { id:'ru_c1',  tier:'common', name:'Compress I',   icon:'🗜️', color:'#4ecca3', shadow:'#1a6650', effects:{ shrink:1 }, desc:'-1 body segment instantly' },
+    { id:'fl_c1',  tier:'common', name:'Compress II',  icon:'🗜️', color:'#4ecca3', shadow:'#1a6650', effects:{ shrink:1 }, desc:'-1 body segment instantly' },
+    { id:'hu_c1',  tier:'common', name:'Minimize I',   icon:'⬇️', color:'#4ecca3', shadow:'#1a6650', effects:{ shrink:1 }, desc:'-1 body segment instantly' },
+    // Score (12)
+    { id:'ap_c1',  tier:'common', name:'Appetite I',    icon:'🍎', color:'#e94560', shadow:'#6a1025', effects:{ bonusScore:1 }, desc:'+1 score per food' },
+    { id:'ap_c2',  tier:'common', name:'Appetite II',   icon:'🍎', color:'#e94560', shadow:'#6a1025', effects:{ bonusScore:1 }, desc:'+1 score per food' },
+    { id:'sn_c1',  tier:'common', name:'Snacker',       icon:'🍬', color:'#e94560', shadow:'#6a1025', effects:{ bonusScore:1 }, desc:'+1 score per food' },
+    { id:'gl_c1',  tier:'common', name:'Glutton I',     icon:'🍕', color:'#e94560', shadow:'#6a1025', effects:{ bonusScore:1 }, desc:'+1 score per food' },
+    { id:'hn_c1',  tier:'common', name:'Hungry I',      icon:'🦁', color:'#e94560', shadow:'#6a1025', effects:{ bonusScore:1 }, desc:'+1 score per food' },
+    { id:'lb_c1',  tier:'common', name:'Lucky Bite I',  icon:'🍀', color:'#ff8c00', shadow:'#6a3800', effects:{ doubleScoreChance:5  }, desc:'5% chance to double score' },
+    { id:'lb_c2',  tier:'common', name:'Lucky Bite II', icon:'🍀', color:'#ff8c00', shadow:'#6a3800', effects:{ doubleScoreChance:5  }, desc:'5% chance to double score' },
+    { id:'br_c1',  tier:'common', name:'Bonus Round',   icon:'🎰', color:'#ff8c00', shadow:'#6a3800', effects:{ doubleScoreChance:6  }, desc:'6% chance to double score' },
+    { id:'st_c1',  tier:'common', name:'Sweet Tooth',   icon:'🍩', color:'#e94560', shadow:'#6a1025', effects:{ bonusScore:1 }, desc:'+1 score per food' },
+    { id:'ef_c1',  tier:'common', name:'Efficiency I',  icon:'💡', color:'#ffd700', shadow:'#6a5800', effects:{ bonusScore:1 }, desc:'+1 score per food' },
+    { id:'gt_c1',  tier:'common', name:'Gold Tooth',    icon:'🦷', color:'#ffd700', shadow:'#6a5800', effects:{ doubleScoreChance:7  }, desc:'7% chance to double score' },
+    // Combo (10)
+    { id:'ct_c1',  tier:'common', name:'Combo Time I',  icon:'🔥', color:'#ff6b35', shadow:'#6a2800', effects:{ comboWindow:200 }, desc:'+0.2s combo window' },
+    { id:'ct_c2',  tier:'common', name:'Combo Time II', icon:'🔥', color:'#ff6b35', shadow:'#6a2800', effects:{ comboWindow:300 }, desc:'+0.3s combo window' },
+    { id:'hs_c1',  tier:'common', name:'Hot Streak I',  icon:'🌶️', color:'#ff4500', shadow:'#6a1500', effects:{ comboWindow:250 }, desc:'+0.25s combo window' },
+    { id:'mo_c1',  tier:'common', name:'Momentum I',    icon:'🎯', color:'#ff6b35', shadow:'#6a2800', effects:{ comboMax:1   }, desc:'+1 max combo multiplier' },
+    { id:'ch_c1',  tier:'common', name:'Chain I',       icon:'⛓️', color:'#ff6b35', shadow:'#6a2800', effects:{ comboWindow:200 }, desc:'+0.2s combo window' },
+    { id:'rf_c1',  tier:'common', name:'Rapid Fire I',  icon:'🏹', color:'#ff8c00', shadow:'#6a3800', effects:{ comboWindow:300 }, desc:'+0.3s combo window' },
+    { id:'or_c1',  tier:'common', name:'On a Roll I',   icon:'🎳', color:'#ff6b35', shadow:'#6a2800', effects:{ comboWindow:400 }, desc:'+0.4s combo window' },
+    { id:'fm_c1',  tier:'common', name:'Flame I',       icon:'🕯️', color:'#ff4500', shadow:'#6a1500', effects:{ comboMax:1   }, desc:'+1 max combo multiplier' },
+    { id:'fw_c1',  tier:'common', name:'Flow I',        icon:'🌊', color:'#00bfff', shadow:'#004488', effects:{ comboWindow:200 }, desc:'+0.2s combo window' },
+    { id:'cb_c1',  tier:'common', name:'Combo Boost I', icon:'✨', color:'#ffd700', shadow:'#6a5800', effects:{ comboWindow:350 }, desc:'+0.35s combo window' },
+    // Survival (12)
+    { id:'ts_c1',  tier:'common', name:'Tough Skin I',  icon:'🛡️', color:'#66ff88', shadow:'#1a5030', effects:{ selfHits:1   }, desc:'Survive 1 self-collision' },
+    { id:'th_c1',  tier:'common', name:'Thick Hide I',  icon:'🦏', color:'#66ff88', shadow:'#1a5030', effects:{ selfHits:1   }, desc:'Survive 1 self-collision' },
+    { id:'ww_c1',  tier:'common', name:'Wall Walker I', icon:'👻', color:'#bf7fff', shadow:'#4a2070', effects:{ wallPasses:1 }, desc:'+1 wall pass, replenish on eat' },
+    { id:'ps_c1',  tier:'common', name:'Phase Step I',  icon:'🌀', color:'#bf7fff', shadow:'#4a2070', effects:{ wallPasses:1 }, desc:'+1 wall pass, replenish on eat' },
+    { id:'gr_c1',  tier:'common', name:'Grit I',        icon:'💪', color:'#66ff88', shadow:'#1a5030', effects:{ selfHits:1   }, desc:'Survive 1 self-collision' },
+    { id:'ba_c1',  tier:'common', name:'Barrier I',     icon:'🔰', color:'#66ff88', shadow:'#1a5030', effects:{ selfHits:1   }, desc:'Survive 1 self-collision' },
+    { id:'en_c1',  tier:'common', name:'Endure I',      icon:'🏋️', color:'#66ff88', shadow:'#1a5030', effects:{ selfHits:1   }, desc:'Survive 1 self-collision' },
+    { id:'ph_c1',  tier:'common', name:'Phase I',       icon:'💫', color:'#bf7fff', shadow:'#4a2070', effects:{ wallPasses:1 }, desc:'+1 wall pass, replenish on eat' },
+    { id:'so_c1',  tier:'common', name:'Shrug Off I',   icon:'🥊', color:'#66ff88', shadow:'#1a5030', effects:{ selfHits:1   }, desc:'Survive 1 self-collision' },
+    { id:'ss_c1',  tier:'common', name:'Side Step I',   icon:'💃', color:'#bf7fff', shadow:'#4a2070', effects:{ wallPasses:1 }, desc:'+1 wall pass, replenish on eat' },
+    { id:'iw_c1',  tier:'common', name:'Iron Will I',   icon:'⚙️', color:'#66ff88', shadow:'#1a5030', effects:{ selfHits:1   }, desc:'Survive 1 self-collision' },
+    { id:'bk_c1',  tier:'common', name:'Breaker I',     icon:'🔨', color:'#bf7fff', shadow:'#4a2070', effects:{ wallPasses:1 }, desc:'+1 wall pass, replenish on eat' },
+    // Food / Board (8)
+    { id:'ef_f1',  tier:'common', name:'Extra Food I',      icon:'🍇', color:'#ff69b4', shadow:'#6a1040', effects:{ extraFood:1 }, desc:'+1 food spawns on board' },
+    { id:'ab_c1',  tier:'common', name:'Abundance I',       icon:'🌽', color:'#ff69b4', shadow:'#6a1040', effects:{ extraFood:1 }, desc:'+1 food spawns on board' },
+    { id:'fg_c1',  tier:'common', name:'Fertile Ground I',  icon:'🌱', color:'#66ff88', shadow:'#1a5030', effects:{ extraFood:1 }, desc:'+1 food spawns on board' },
+    { id:'cr_c1',  tier:'common', name:'Crop I',            icon:'🌾', color:'#ffd700', shadow:'#6a5800', effects:{ extraFood:1 }, desc:'+1 food spawns on board' },
+    { id:'gd_c1',  tier:'common', name:'Gardens I',         icon:'🌷', color:'#ff69b4', shadow:'#6a1040', effects:{ extraFood:1 }, desc:'+1 food spawns on board' },
+    { id:'hv_c1',  tier:'common', name:'Harvest I',         icon:'🍂', color:'#ff8c00', shadow:'#6a3800', effects:{ extraFood:1 }, desc:'+1 food spawns on board' },
+    { id:'pl_c1',  tier:'common', name:'Plenty I',          icon:'🍱', color:'#ff69b4', shadow:'#6a1040', effects:{ extraFood:1 }, desc:'+1 food spawns on board' },
+    { id:'xs_c1',  tier:'common', name:'Extra Serving I',   icon:'🍽️', color:'#ff69b4', shadow:'#6a1040', effects:{ extraFood:1 }, desc:'+1 food spawns on board' },
+    // XP (6)
+    { id:'ql_c1',  tier:'common', name:'Quick Learner I', icon:'📚', color:'#4d9fff', shadow:'#1a4080', effects:{ bonusXP:1 }, desc:'+1 XP per food eaten' },
+    { id:'st_x1',  tier:'common', name:'Study I',         icon:'🎓', color:'#4d9fff', shadow:'#1a4080', effects:{ bonusXP:1 }, desc:'+1 XP per food eaten' },
+    { id:'sm_c1',  tier:'common', name:'Sharp Mind I',    icon:'🧠', color:'#4d9fff', shadow:'#1a4080', effects:{ bonusXP:1 }, desc:'+1 XP per food eaten' },
+    { id:'wi_c1',  tier:'common', name:'Wisdom I',        icon:'🦉', color:'#4d9fff', shadow:'#1a4080', effects:{ bonusXP:1 }, desc:'+1 XP per food eaten' },
+    { id:'sc_c1',  tier:'common', name:'Scholar I',       icon:'📖', color:'#4d9fff', shadow:'#1a4080', effects:{ bonusXP:1 }, desc:'+1 XP per food eaten' },
+    { id:'gr_x1',  tier:'common', name:'Growth I',        icon:'🌿', color:'#4d9fff', shadow:'#1a4080', effects:{ bonusXP:1 }, desc:'+1 XP per food eaten' },
+
+    // ════════════════ RARE (30) ════════════════
+    // Speed (5)
+    { id:'sw_r1',  tier:'rare', name:'Slim III',         icon:'🪶', color:'#4d9fff', shadow:'#1a4080', effects:{ shrink:2 }, desc:'-2 body segments instantly' },
+    { id:'sw_r2',  tier:'rare', name:'Slim IV',          icon:'🪶', color:'#4d9fff', shadow:'#1a4080', effects:{ shrink:3 }, desc:'-3 body segments instantly' },
+    { id:'sw_r3',  tier:'rare', name:'Slim V',           icon:'🪶', color:'#4d9fff', shadow:'#1a4080', effects:{ shrink:3 }, desc:'-3 body segments instantly' },
+    { id:'bl_r1',  tier:'rare', name:'Blitz I',          icon:'⚡', color:'#00bfff', shadow:'#004488', effects:{ burstChance:0.15 }, desc:'15% chance of speed burst on eat' },
+    { id:'bl_r2',  tier:'rare', name:'Blitz Surge',      icon:'⚡', color:'#00bfff', shadow:'#004488', effects:{ burstDuration:1000 }, desc:'+1s speed burst duration' },
+    // Score (7)
+    { id:'ap_r1',  tier:'rare', name:'Appetite III',     icon:'🍎', color:'#e94560', shadow:'#6a1025', effects:{ bonusScore:2 }, desc:'+2 score per food' },
+    { id:'ap_r2',  tier:'rare', name:'Appetite IV',      icon:'🍎', color:'#e94560', shadow:'#6a1025', effects:{ bonusScore:3 }, desc:'+3 score per food' },
+    { id:'db_r1',  tier:'rare', name:'Double Down',      icon:'💎', color:'#ff8c00', shadow:'#6a3800', effects:{ doubleScoreChance:18 }, desc:'18% chance to double score' },
+    { id:'tr_r1',  tier:'rare', name:'Triple Threat',    icon:'🎯', color:'#ff6b35', shadow:'#6a2800', effects:{ tripleScoreChance:12 }, desc:'12% chance to triple score' },
+    { id:'gl_r1',  tier:'rare', name:'Glutton II',       icon:'🍕', color:'#e94560', shadow:'#6a1025', effects:{ bonusScore:2 }, desc:'+2 score per food' },
+    { id:'hn_r1',  tier:'rare', name:'Hungry II',        icon:'🦁', color:'#e94560', shadow:'#6a1025', effects:{ bonusScore:2 }, desc:'+2 score per food' },
+    { id:'gd_r1',  tier:'rare', name:'Gold Fever',       icon:'🥇', color:'#ffd700', shadow:'#6a5800', effects:{ bonusScore:3, doubleScoreChance:8 }, desc:'+3 score · 8% double' },
+    // Combo (5)
+    { id:'ct_r1',  tier:'rare', name:'Combo Time III',   icon:'🔥', color:'#ff4500', shadow:'#6a1500', effects:{ comboWindow:800  }, desc:'+0.8s combo window' },
+    { id:'ct_r2',  tier:'rare', name:'Combo Time IV',    icon:'🔥', color:'#ff4500', shadow:'#6a1500', effects:{ comboWindow:1000 }, desc:'+1s combo window' },
+    { id:'cm_r1',  tier:'rare', name:'Combo Master',     icon:'⭐', color:'#ffd700', shadow:'#6a5800', effects:{ comboMax:2 }, desc:'+2 max combo multiplier' },
+    { id:'nr_r1',  tier:'rare', name:'Wall Rhythm',      icon:'🌊', color:'#00bfff', shadow:'#004488', effects:{ comboNoReset:true }, desc:'Wall passes don\'t break combo timer' },
+    { id:'hs_r1',  tier:'rare', name:'Hot Streak II',    icon:'🌶️', color:'#ff4500', shadow:'#6a1500', effects:{ comboWindow:700, comboMax:1 }, desc:'+0.7s window · +1 max combo' },
+    // Survival (6)
+    { id:'ts_r1',  tier:'rare', name:'Tough Skin II',    icon:'🛡️', color:'#66ff88', shadow:'#1a5030', effects:{ selfHits:2   }, desc:'Survive 2 self-collisions' },
+    { id:'ts_r2',  tier:'rare', name:'Tough Skin III',   icon:'🛡️', color:'#66ff88', shadow:'#1a5030', effects:{ selfHits:3   }, desc:'Survive 3 self-collisions' },
+    { id:'ww_r1',  tier:'rare', name:'Wall Walker II',   icon:'👻', color:'#bf7fff', shadow:'#4a2070', effects:{ wallPasses:2 }, desc:'+2 wall passes, replenish on eat' },
+    { id:'ww_r2',  tier:'rare', name:'Wall Walker III',  icon:'👻', color:'#bf7fff', shadow:'#4a2070', effects:{ wallPasses:3 }, desc:'+3 wall passes, replenish on eat' },
+    { id:'sc_r1',  tier:'rare', name:'Second Chance',    icon:'🔄', color:'#66ff88', shadow:'#1a5030', effects:{ selfHits:2, wallPasses:2 }, desc:'+2 self-hits · +2 wall passes' },
+    { id:'gr_r1',  tier:'rare', name:'Grit II',          icon:'💪', color:'#66ff88', shadow:'#1a5030', effects:{ selfHits:3   }, desc:'Survive 3 self-collisions' },
+    // Board (4)
+    { id:'ex_r1',  tier:'rare', name:'Bigger World I',   icon:'🗺️', color:'#cc44ff', shadow:'#6600aa', effects:{ boardExpand:{dx:2,dy:2} }, desc:'Grid grows by +2×2' },
+    { id:'ex_r2',  tier:'rare', name:'Bigger World II',  icon:'🗺️', color:'#cc44ff', shadow:'#6600aa', effects:{ boardExpand:{dx:4,dy:4} }, desc:'Grid grows by +4×4' },
+    { id:'ef_r1',  tier:'rare', name:'Extra Food II',    icon:'🍇', color:'#ff69b4', shadow:'#6a1040', effects:{ extraFood:2 }, desc:'+2 food spawns on board' },
+    { id:'ef_r2',  tier:'rare', name:'Extra Food III',   icon:'🍇', color:'#ff69b4', shadow:'#6a1040', effects:{ extraFood:3 }, desc:'+3 food spawns on board' },
+    // XP (3)
+    { id:'ql_r1',  tier:'rare', name:'Quick Learner II', icon:'📚', color:'#4d9fff', shadow:'#1a4080', effects:{ bonusXP:2 }, desc:'+2 XP per food eaten' },
+    { id:'xr_r1',  tier:'rare', name:'XP Discount I',   icon:'📉', color:'#4d9fff', shadow:'#1a4080', effects:{ xpReqMult:0.90 }, desc:'-10% XP needed for levels' },
+    { id:'xr_r2',  tier:'rare', name:'XP Discount II',  icon:'📉', color:'#4d9fff', shadow:'#1a4080', effects:{ xpReqMult:0.90 }, desc:'-10% XP needed for levels' },
+
+    // ════════════════ EPIC (9) ════════════════
+    { id:'sg_e1',  tier:'epic', name:'Singularity',    icon:'🌌', color:'#cc44ff', shadow:'#6600aa',
+      effects:{ boardExpand:{dx:8,dy:8}, extraFood:2 },
+      desc:'Grid +8×8 · +2 food on board' },
+    { id:'ov_e1',  tier:'epic', name:'Omnivore',       icon:'🐲', color:'#cc44ff', shadow:'#6600aa',
+      effects:{ bonusScore:8 },
+      desc:'+8 score per food eaten' },
+    { id:'ic_e1',  tier:'epic', name:'Immortal Coil',  icon:'♾️', color:'#cc44ff', shadow:'#6600aa',
+      effects:{ selfHits:5, wallPasses:5 },
+      desc:'+5 self-hit shield · +5 wall passes' },
+    { id:'hb_e1',  tier:'epic', name:'Hyperblitz',     icon:'🌩️', color:'#00bfff', shadow:'#004488',
+      effects:{ burstChance:0.50, burstDuration:3000, burstScoreMult:2 },
+      desc:'50% burst chance · +3s duration · ×3 score in burst' },
+    { id:'ih_e1',  tier:'epic', name:'Infinite Hunger',icon:'🍄', color:'#cc44ff', shadow:'#6600aa',
+      effects:{ extraFood:5 },
+      desc:'+5 food spawns on board' },
+    { id:'fs_e1',  tier:'epic', name:'Flow State',     icon:'🌀', color:'#cc44ff', shadow:'#6600aa',
+      effects:{ comboWindow:5000, comboNoReset:true },
+      desc:'+5s combo window, combos never expire on wall' },
+    { id:'mo_e1',  tier:'epic', name:'Minimize',       icon:'⬇️', color:'#00bfff', shadow:'#004488',
+      effects:{ shrink:6 },
+      desc:'-6 body segments instantly' },
+    { id:'xs_e1',  tier:'epic', name:'XP Surge',       icon:'🚀', color:'#cc44ff', shadow:'#6600aa',
+      effects:{ xpReqMult:0.50 },
+      desc:'Halve all future XP requirements' },
+    { id:'bw_e1',  tier:'epic', name:'Big World',      icon:'🌍', color:'#cc44ff', shadow:'#6600aa',
+      effects:{ boardExpand:{dx:12,dy:12}, extraFood:4 },
+      desc:'Grid +12×12 · +4 food on board' },
+
+
+    // ════════════════ CURSED (8) ════════════════
+    // High benefit + negative effect. New effect keys:
+    //   extraGrowth   – snake grows N extra segments per food eaten
+    //   forcedBurst   – snake always moves at burst speed
+    //   wallDamage    – each wall pass costs N self-hit shields (die if empty)
+    { id:'bl_cu1', tier:'cursed', name:'Blood Pact',      icon:'🩸', color:'#ff4466', shadow:'#660022',
+      effects:{ bonusScore:15, extraGrowth:3 },
+      desc:'+15 score per food · ⚠ grow 3 extra segments per eat' },
+    { id:'in_cu1', tier:'cursed', name:'Insatiable',      icon:'🦈', color:'#ff4466', shadow:'#660022',
+      effects:{ extraFood:8, bonusScore:8, extraGrowth:2 },
+      desc:'+8 food · +8 score · ⚠ grow 2 extra per eat' },
+    { id:'fr_cu1', tier:'cursed', name:'Frenzy',          icon:'💀', color:'#ff4466', shadow:'#660022',
+      effects:{ burstScoreMult:5, forcedBurst:true },
+      desc:'×6 score in burst · ⚠ permanently at burst speed' },
+    { id:'dm_cu1', tier:'cursed', name:'Damnation',       icon:'😈', color:'#ff4466', shadow:'#660022',
+      effects:{ selfHits:12, wallPasses:12, wallDamage:3 },
+      desc:'+12 shield & wall passes · ⚠ each wall pass costs 3 shields' },
+    { id:'gs_cu1', tier:'cursed', name:'Gluttony\'s Sin', icon:'🌋', color:'#ff4466', shadow:'#660022',
+      effects:{ boardExpand:{dx:14,dy:14}, extraFood:10, extraGrowth:4 },
+      desc:'Grid +14×14 · +10 food · ⚠ grow 4 extra per eat' },
+    { id:'wc_cu1', tier:'cursed', name:'Warped Coil',     icon:'🌀', color:'#ff4466', shadow:'#660022',
+      effects:{ wallPasses:25, comboWindow:8000, comboNoReset:true, wallDamage:2 },
+      desc:'+25 wall passes · +8s combo · ⚠ each pass costs 2 shields' },
+    { id:'sc_cu1', tier:'cursed', name:'Soul Crusher',    icon:'⚠️', color:'#ff4466', shadow:'#660022',
+      effects:{ bonusScore:25, xpReqMult:0.15, forcedBurst:true, extraGrowth:5 },
+      desc:'+25 score · -85% XP req · ⚠ burst speed + grow 5 extra per eat' },
+    { id:'oc_cu1', tier:'cursed', name:'Omega Coil',      icon:'🔱', color:'#ff4466', shadow:'#660022',
+      effects:{ shrink:8, bonusScore:10, selfHits:5, extraGrowth:10 },
+      desc:'-8 size now · +10 score · +5 shield · ⚠ grow 10 extra per eat' },
+
+    // ════════════════ LEGENDARY (1) ════════════════
+    { id:'as_e1',  tier:'legendary', name:'Ascendant', icon:'👑', color:'#ffd700', shadow:'#6a5800',
+      effects:{ bonusScore:5, shrink:2, selfHits:3, wallPasses:3, comboMax:3, extraFood:2 },
+      desc:'+5 score · -2 size · +3 shield · +3 walls · +3 combo · +2 food' },
+  ];
+
+  const PERK_MAP = Object.fromEntries(PERKS.map(p => [p.id, p]));
+
+  // ── state ──
+  let snake, dir, dirQueue, foods, maxFoods, score, best, running, paused;
+  let particles;
+  let speedActive, speedEnd, burstScoreMult;
+  let ghostWalls, maxGhostWalls;
+  let combo, lastEatTime;
+  let xp, xpNeeded, playerLevel, playerPerks, selfHitsLeft, levelUpPending;
+
+  const BLITZ_DURATION_BASE = 3000;
+
+  best = parseInt(localStorage.getItem('snakeBest') || '0');
+  bestEl.textContent = best;
+
+  // ── high scores ──
+  const HS_KEY = 'snakeHiScores';
+  const HS_MAX = 10;
+  let hiScores = JSON.parse(localStorage.getItem(HS_KEY) || '[]');
+
+  function qualifiesForHiScore(s) {
+    if (s <= 0) return false;
+    if (hiScores.length < HS_MAX) return true;
+    return s > hiScores[hiScores.length - 1].score;
+  }
+
+  function saveHiScore(name, s) {
+    hiScores.push({ name: name.toUpperCase(), score: s, fresh: true });
+    hiScores.sort((a, b) => b.score - a.score);
+    if (hiScores.length > HS_MAX) hiScores.length = HS_MAX;
+    localStorage.setItem(HS_KEY, JSON.stringify(hiScores.map(e => ({ name: e.name, score: e.score }))));
+  }
+
+  function renderHiScores() {
+    const list = document.getElementById('hs-list');
+    if (!list) return;
+    if (hiScores.length === 0) {
+      list.innerHTML = '<div class="hs-row" style="justify-content:center;color:#334;font-size:0.6rem;letter-spacing:0.1em;padding:8px 0;">NO SCORES YET</div>';
+      return;
+    }
+    list.innerHTML = hiScores.map((e, i) => {
+      let cls = 'hs-row';
+      if (i === 0) cls += ' hs-first';
+      else if (i === 1) cls += ' hs-second';
+      else if (i === 2) cls += ' hs-third';
+      if (e.fresh) cls += ' hs-new';
+      return `<div class="${cls}">` +
+        `<span class="hs-rank">${i + 1}.</span>` +
+        `<span class="hs-name">${e.name || '???'}</span>` +
+        `<span class="hs-score">${e.score}</span>` +
+        `</div>`;
+    }).join('');
+  }
+
+  // ── helpers ──
+  function rnd(n) { return Math.floor(Math.random() * n); }
+
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // Sum a numeric effect across all picked perks
+  function sumFx(key) {
+    let total = 0;
+    for (const [id, count] of Object.entries(playerPerks)) {
+      const fx = PERK_MAP[id].effects[key];
+      if (typeof fx === 'number') total += fx * count;
+    }
+    return total;
+  }
+
+  // Product of all xpReqMult values
+  function xpReqProduct() {
+    let prod = 1;
+    for (const [id, count] of Object.entries(playerPerks)) {
+      const fx = PERK_MAP[id].effects.xpReqMult;
+      if (fx != null) prod *= Math.pow(fx, count);
+    }
+    return prod;
+  }
+
+  function hasFx(key) {
+    return Object.keys(playerPerks).some(id => PERK_MAP[id].effects[key]);
+  }
+
+  function xpForLevel(level) {
+    const base = Math.ceil(5 * Math.pow(1.1, level - 1));
+    return Math.max(1, Math.round(base * xpReqProduct()));
+  }
+
+  function occupiedSet() {
+    const s = new Set(snake.map(p => p[0]+','+p[1]));
+    foods.forEach(f => s.add(f[0]+','+f[1]));
+    return s;
+  }
+
+  function spawnFoods() {
+    while (foods.length < maxFoods) {
+      const occ = occupiedSet();
+      const free = COLS * ROWS - snake.length - foods.length;
+      if (free <= 0) break;
+      let f;
+      do { f = [rnd(COLS), rnd(ROWS)]; } while (occ.has(f[0]+','+f[1]));
+      foods.push(f);
+    }
+  }
+
+  function pruneOutOfBoundsFoods() {
+    foods = foods.filter(f => f[0] < COLS && f[1] < ROWS);
+    spawnFoods();
+  }
+
+  function expandBoard(dx, dy) {
+    COLS += dx;
+    ROWS += dy;
+    recomputeCell();
+    pruneOutOfBoundsFoods();
+  }
+
+  function spawnParticles(cx, cy, color, count) {
+    count = count || 10;
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 1.5 + Math.random() * 3;
+      particles.push({
+        x: cx * CELL + CELL / 2, y: cy * CELL + CELL / 2,
+        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+        r: 2 + Math.random() * 3,
+        alpha: 1,
+        color,
+        decay: 0.035 + Math.random() * 0.04,
+      });
+    }
+  }
+
+  // ── init ──
+  function init() {
+    COLS = 20; ROWS = 20;
+    recomputeCell();
+
+    const cx = Math.floor(COLS / 2), cy = Math.floor(ROWS / 2);
+    snake          = [[cx, cy], [cx-1, cy], [cx-2, cy]];
+    dir            = DIR.RIGHT;
+    dirQueue       = [];
+    score          = 0;
+    xp             = 0;
+    playerLevel    = 1;
+    playerPerks    = {};
+    selfHitsLeft   = 0;
+    levelUpPending = false;
+    maxFoods       = 1;
+    foods          = [];
+    scoreEl.textContent = 0;
+    levelEl.textContent = 1;
+    paused         = false;
+    particles      = [];
+    speedActive    = false; speedEnd = 0;
+    burstScoreMult = 1;
+    ghostWalls     = 0; maxGhostWalls = 0;
+    combo          = 0;
+    lastEatTime    = 0;
+    xpNeeded       = xpForLevel(1);
+    spawnFoods();
+    effectsBar.innerHTML = '';
+    levelupOverlay.style.display = 'none';
+    refreshXPBar();
+    refreshPerks();
+    hiScores.forEach(e => delete e.fresh);
+    renderHiScores();
+  }
+
+  // ── XP & leveling ──
+  function refreshXPBar() {
+    const pct = Math.min(100, (xp / xpNeeded) * 100);
+    xpFill.style.width = pct + '%';
+    xpNums.textContent = xp + ' / ' + xpNeeded;
+  }
+
+  function gainXP(amount) {
+    xp += amount;
+    while (xp >= xpNeeded) {
+      xp -= xpNeeded;
+      playerLevel++;
+      levelEl.textContent = playerLevel;
+      xpNeeded = xpForLevel(playerLevel);
+      levelUpPending = true;
+    }
+    refreshXPBar();
+  }
+
+  // ── tier-weighted selection ──
+  function pickTier() {
+    const lvl = playerLevel;
+    // weights: [common, rare, epic, cursed, legendary]
+    let w;
+    if      (lvl <= 3)  w = [80, 18, 2, 0, 0];
+    else if (lvl <= 8)  w = [60, 35, 4, 0, 1];
+    else if (lvl <= 15) w = [40, 43, 14, 2, 1];
+    else if (lvl <= 25) w = [25, 38, 24, 10, 3];
+    else                w = [15, 28, 28, 22, 7];
+    const total = w[0] + w[1] + w[2] + w[3] + w[4];
+    const r = Math.random() * total;
+    if (r < w[0])                         return 'common';
+    if (r < w[0]+w[1])                    return 'rare';
+    if (r < w[0]+w[1]+w[2])               return 'epic';
+    if (r < w[0]+w[1]+w[2]+w[3])          return 'cursed';
+    return 'legendary';
+  }
+
+  function pickPerkOfTier(tier, excluded) {
+    const pool = PERKS.filter(p => p.tier === tier && !excluded.has(p.id));
+    if (pool.length === 0) return null;
+    return pool[rnd(pool.length)];
+  }
+
+  function showLevelUp() {
+    paused = true;
+    luLevelEl.textContent = playerLevel;
+    const excluded = new Set();
+    const chosen = [];
+    for (let i = 0; i < 3; i++) {
+      let tier = pickTier();
+      let perk = pickPerkOfTier(tier, excluded);
+      // fallback: try other tiers if exhausted
+      if (!perk) {
+        const fallbacks = ['common', 'rare', 'epic', 'cursed', 'legendary'].filter(t => t !== tier);
+        for (const ft of fallbacks) {
+          perk = pickPerkOfTier(ft, excluded);
+          if (perk) break;
+        }
+      }
+      if (!perk) break;
+      excluded.add(perk.id);
+      chosen.push(perk);
+    }
+
+    perkCardsEl.innerHTML = '';
+    chosen.forEach((perk, i) => {
+      const isOwned = !!playerPerks[perk.id];
+      const card = document.createElement('div');
+      card.className = 'perk-card';
+      card.style.setProperty('--perk-color', perk.color);
+      card.style.setProperty('--perk-shadow', perk.shadow + '99');
+      card.innerHTML =
+        `<div class="perk-shortcut">${i+1}</div>` +
+        `<div class="perk-tier tier-${perk.tier}">${perk.tier.toUpperCase()}</div>` +
+        `<div class="perk-icon">${perk.icon}</div>` +
+        `<div class="perk-name">${perk.name}</div>` +
+        `<div class="perk-rank">${isOwned ? 'STACK ×'+(playerPerks[perk.id]+1) : (perk.tier === 'cursed' ? '⚠ CURSED!' : perk.tier === 'legendary' ? '★ LEGENDARY!' : 'NEW!')}</div>` +
+        `<div class="perk-desc">${perk.desc}</div>`;
+      card.addEventListener('click', () => selectPerk(perk.id));
+      perkCardsEl.appendChild(card);
+    });
+    levelupOverlay._perkIds = chosen.map(p => p.id);
+    levelupOverlay.style.display = 'flex';
+  }
+
+  function selectPerk(id) {
+    applyPerk(id);
+    levelupOverlay.style.display = 'none';
+    levelUpPending = false;
+    paused = false;
+  }
+
+  function applyPerk(id) {
+    playerPerks[id] = (playerPerks[id] || 0) + 1;
+    const fx = PERK_MAP[id].effects;
+
+    // Instant one-time effects
+    if (fx.shrink)      { const cut = Math.min(fx.shrink, snake.length - 3); if (cut > 0) snake.splice(snake.length - cut, cut); }
+    if (fx.selfHits)     selfHitsLeft  += fx.selfHits;
+    if (fx.wallPasses)  { maxGhostWalls += fx.wallPasses; ghostWalls += fx.wallPasses; }
+    if (fx.extraFood)   { maxFoods += fx.extraFood; spawnFoods(); }
+    if (fx.boardExpand) expandBoard(fx.boardExpand.dx, fx.boardExpand.dy);
+
+    // Recompute XP needed (xpReqMult perks change the formula)
+    xpNeeded = xpForLevel(playerLevel);
+    refreshXPBar();
+
+    // Recompute derived burst/score state
+    burstScoreMult = 1 + sumFx('burstScoreMult');
+
+    refreshPerks();
+    refreshEffects();
+  }
+
+  function refreshPerks() {
+    const entries = Object.entries(playerPerks);
+    if (entries.length === 0) { activePerksEl.innerHTML = '<span style="color:#445">—</span>'; return; }
+    activePerksEl.innerHTML = entries.map(([id, count]) => {
+      const def = PERK_MAP[id];
+      const cls = 'ap-' + def.tier;
+      const stk = count > 1 ? ` <span style="color:#445">×${count}</span>` : '';
+      return `<span class="${cls}">${def.icon} ${def.name}${stk}</span>`;
+    }).join('<br>');
+  }
+
+  function badge(cls, label, pct) {
+    return `<span class="effect-badge ${cls}">` +
+      `<span class="badge-label">${label}</span>` +
+      `<span class="badge-bar-track"><span class="badge-bar-fill" style="width:${pct}%"></span></span>` +
+      `</span>`;
+  }
+
+  function refreshEffects() {
+    const now = Date.now();
+    const totalBurst = BLITZ_DURATION_BASE + sumFx('burstDuration');
+    const badges = [];
+    if (hasFx('forcedBurst')) {
+      badges.push(badge('badge-speed', '💀 CURSED', 100));
+    } else if (speedActive) {
+      badges.push(badge('badge-speed', '⚡ BLITZ', Math.max(0, (speedEnd - now) / totalBurst * 100)));
+    }
+    if (ghostWalls > 0) badges.push(`<span class="effect-badge badge-ghost">👻 ×${ghostWalls} WALL</span>`);
+    if (combo >= 2) {
+      const comboWindow = 2500 + sumFx('comboWindow');
+      const comboPct = Math.max(0, (1 - (now - lastEatTime) / comboWindow) * 100);
+      badges.push(badge('badge-combo', '×' + combo + ' COMBO', comboPct));
+    }
+    if (selfHitsLeft > 0) badges.push(`<span class="effect-badge badge-resilience">🛡️ ×${selfHitsLeft} SHIELD</span>`);
+    effectsBar.innerHTML = badges.join('');
+  }
+
+  function tickEffectBars() {
+    const now = Date.now();
+    if (speedActive && !hasFx('forcedBurst')) {
+      const el = effectsBar.querySelector('.badge-speed .badge-bar-fill');
+      const totalBurst = BLITZ_DURATION_BASE + sumFx('burstDuration');
+      if (el) el.style.width = Math.max(0, (speedEnd - now) / totalBurst * 100) + '%';
+    }
+    if (combo >= 2) {
+      const el = effectsBar.querySelector('.badge-combo .badge-bar-fill');
+      const comboWindow = 2500 + sumFx('comboWindow');
+      if (el) el.style.width = Math.max(0, (1 - (now - lastEatTime) / comboWindow) * 100) + '%';
+    }
+  }
+
+  // ── draw ──
+  const SNAKE_HEAD  = '#4ecca3';
+  const SNAKE_BODY  = '#38b28a';
+  const FOOD_COLOR  = '#e94560';
+  const GRID_COLOR  = '#ffffff08';
+  const BG_COLOR    = '#0f0f23';
+
+  function draw() {
+    ctx.fillStyle = BG_COLOR;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // grid
+    ctx.strokeStyle = GRID_COLOR;
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= COLS; x++) {
+      ctx.beginPath(); ctx.moveTo(x*CELL, 0); ctx.lineTo(x*CELL, canvas.height); ctx.stroke();
+    }
+    for (let y = 0; y <= ROWS; y++) {
+      ctx.beginPath(); ctx.moveTo(0, y*CELL); ctx.lineTo(canvas.width, y*CELL); ctx.stroke();
+    }
+
+    const now = Date.now();
+
+    // all food items (pulsing dots)
+    foods.forEach((fd, idx) => {
+      const pulse = 0.85 + 0.15 * Math.sin(now / 200 + idx * 1.3);
+      const fr = (CELL / 2 - 3) * pulse;
+      const fx = fd[0] * CELL + CELL / 2;
+      const fy = fd[1] * CELL + CELL / 2;
+      ctx.shadowBlur  = 14;
+      ctx.shadowColor = FOOD_COLOR;
+      ctx.fillStyle   = FOOD_COLOR;
+      ctx.beginPath(); ctx.arc(fx, fy, fr, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+    });
+
+    // snake
+    const hasWall = maxGhostWalls > 0;
+    const headCol = hasWall ? '#bf7fff' : (speedActive ? '#00bfff' : SNAKE_HEAD);
+    const bodyCol = hasWall ? '#9933cc' : (speedActive ? '#0077aa' : SNAKE_BODY);
+    snake.forEach(([x, y], i) => {
+      const isHead = i === 0;
+      const r = CELL - 4;
+      const px = x * CELL + 2, py = y * CELL + 2;
+
+      ctx.shadowBlur  = isHead ? 12 : 0;
+      ctx.shadowColor = headCol;
+      ctx.fillStyle   = isHead ? headCol : bodyCol;
+      if (hasWall) ctx.globalAlpha = 0.82;
+
+      roundRect(ctx, px, py, r, r, isHead ? 7 : 5);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      if (isHead) {
+        const [dx, dy] = dir;
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#1a1a2e';
+        const e1x = px + r/2 + dy * 5;
+        const e1y = py + r/2 + dx * 5;
+        const e2x = px + r/2 - dy * 5;
+        const e2y = py + r/2 - dx * 5;
+        const eo = 4;
+        ctx.beginPath(); ctx.arc(e1x + dx*eo, e1y + dy*eo, 2.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(e2x + dx*eo, e2y + dy*eo, 2.5, 0, Math.PI*2); ctx.fill();
+      }
+    });
+    ctx.shadowBlur = 0;
+
+    // particles
+    particles.forEach(p => {
+      ctx.globalAlpha = p.alpha;
+      ctx.fillStyle   = p.color;
+      ctx.shadowBlur  = 6;
+      ctx.shadowColor = p.color;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur  = 0;
+
+    tickEffectBars();
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+  }
+
+  // ── step ──
+  function step() {
+    if (dirQueue.length > 0) dir = dirQueue.shift();
+    const head = [snake[0][0] + dir[0], snake[0][1] + dir[1]];
+    const now  = Date.now();
+
+    // wall collision — wall passes let you wrap
+    if (head[0] < 0 || head[0] >= COLS || head[1] < 0 || head[1] >= ROWS) {
+      if (ghostWalls > 0) {
+        const noReset = hasFx('comboNoReset');
+        const prevEatTime = lastEatTime;
+        head[0] = (head[0] + COLS) % COLS;
+        head[1] = (head[1] + ROWS) % ROWS;
+        ghostWalls--;
+        const wallDmg = sumFx('wallDamage');
+        if (wallDmg > 0) {
+          selfHitsLeft -= wallDmg;
+          spawnParticles(head[0], head[1], '#ff4466', 10);
+          if (selfHitsLeft <= 0) { selfHitsLeft = 0; return endGame(); }
+        }
+        if (noReset) lastEatTime = prevEatTime; // preserve combo timer on wall pass
+        refreshEffects();
+      } else {
+        return endGame();
+      }
+    }
+    // self collision
+    if (snake.some(s => s[0] === head[0] && s[1] === head[1])) {
+      if (selfHitsLeft > 0) {
+        selfHitsLeft--;
+        spawnParticles(head[0], head[1], '#ff4444', 8);
+        refreshEffects();
+      } else {
+        return endGame();
+      }
+    }
+
+    snake.unshift(head);
+
+    // check if head hit any food
+    const foodIdx = foods.findIndex(f => f[0] === head[0] && f[1] === head[1]);
+    if (foodIdx !== -1) {
+      const comboWindow = 2500 + sumFx('comboWindow');
+      const maxCombo    = 4 + sumFx('comboMax');
+      combo = (now - lastEatTime < comboWindow) ? Math.min(combo + 1, maxCombo) : 1;
+      lastEatTime = now;
+
+      const bonusPts = sumFx('bonusScore');
+      const isBurst = speedActive || hasFx('forcedBurst');
+      let pts = combo * (isBurst ? burstScoreMult : 1) + bonusPts;
+
+      // double/triple score chance
+      const dChance = sumFx('doubleScoreChance') / 100;
+      const tChance = sumFx('tripleScoreChance') / 100;
+      if (Math.random() < tChance) pts *= 3;
+      else if (Math.random() < dChance) pts *= 2;
+
+      score += Math.round(pts);
+      scoreEl.textContent = score;
+      if (score > best) { best = score; bestEl.textContent = best; localStorage.setItem('snakeBest', best); }
+
+      spawnParticles(foods[foodIdx][0], foods[foodIdx][1], FOOD_COLOR, 12);
+      foods.splice(foodIdx, 1);
+      spawnFoods();
+
+      // blitz burst
+      const totalBurstChance = sumFx('burstChance');
+      if (!speedActive && totalBurstChance > 0 && Math.random() < totalBurstChance) {
+        speedActive    = true;
+        const totalBurstDur = BLITZ_DURATION_BASE + sumFx('burstDuration');
+        speedEnd       = now + totalBurstDur;
+        burstScoreMult = 1 + sumFx('burstScoreMult');
+      }
+
+      // replenish wall passes on eat (up to max)
+      ghostWalls = maxGhostWalls;
+
+      // XP gain
+      const xpGain = 1 + sumFx('bonusXP');
+      gainXP(xpGain);
+
+      refreshEffects();
+
+      // only grow on level-up; otherwise remove tail
+      if (!levelUpPending) {
+        snake.pop();
+      } else {
+        // grow 1 (tail not popped) + extra cursed growth
+        const extra = sumFx('extraGrowth');
+        for (let i = 0; i < extra; i++) snake.push([...snake[snake.length - 1]]);
+      }
+    } else {
+      snake.pop();
+    }
+
+    // trigger level-up overlay (draw happens in gameFrame after step returns)
+    if (levelUpPending) {
+      showLevelUp();
+      levelUpPending = false;
+    }
+  }
+
+  // ── speed ──
+  function getDelay() {
+    let base;
+    if      (score < 5)  base = 220;
+    else if (score < 50) base = 180;
+    else if (score < 100) base = 150;
+    else if (score < 150) base = 120;
+    else                 base = 100;
+    return Math.max(40, (speedActive || hasFx('forcedBurst')) ? Math.round(base * 0.55) : base);
+  }
+
+  let lastTime = 0, accumulated = 0;
+
+  function gameFrame(ts) {
+    if (!running) return;
+    if (paused)   { lastTime = ts; accumulated = 0; requestAnimationFrame(gameFrame); return; }
+
+    const now   = Date.now();
+    const delta = ts - lastTime;
+    lastTime = ts;
+    accumulated += delta;
+
+    // expire timed effects
+    if (speedActive && now >= speedEnd) { speedActive = false; refreshEffects(); }
+
+    // update particles
+    particles = particles.filter(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.09;
+      p.alpha -= p.decay;
+      p.r *= 0.97;
+      return p.alpha > 0;
+    });
+
+    const delay = getDelay();
+    while (accumulated >= delay) {
+      accumulated -= delay;
+      step();
+      if (paused) break;
+    }
+
+    draw();
+    requestAnimationFrame(gameFrame);
+  }
+
+  // ── start / end ──
+  function startGame() {
+    init();
+    draw();
+    overlay.style.display = 'none';
+    running = true;
+    lastTime = performance.now();
+    accumulated = 0;
+    requestAnimationFrame(gameFrame);
+  }
+
+  function endGame() {
+    running = false;
+    if (qualifiesForHiScore(score)) {
+      const rank = hiScores.filter(e => e.score > score).length + 1;
+      showNameEntry(rank);
+    } else {
+      overlayTitle.textContent = 'GAME OVER';
+      overlayMsg.textContent   = `Score: ${score}  ·  Level: ${playerLevel}`;
+      startBtn.textContent     = 'PLAY AGAIN';
+      overlay.style.display    = 'flex';
+    }
+  }
+
+  // ── input ──
+  const keyMap = {
+    ArrowUp:'UP', w:'UP', W:'UP',
+    ArrowDown:'DOWN', s:'DOWN', S:'DOWN',
+    ArrowLeft:'LEFT', a:'LEFT', A:'LEFT',
+    ArrowRight:'RIGHT', d:'RIGHT', D:'RIGHT',
+  };
+
+  const opposite = { UP:'DOWN', DOWN:'UP', LEFT:'RIGHT', RIGHT:'LEFT' };
+
+  function isTypingTarget(target) {
+    if (!target) return false;
+    const tag = target.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable;
+  }
+
+  document.addEventListener('keydown', e => {
+    if (isTypingTarget(e.target)) return;
+    if (levelupOverlay.style.display !== 'none') {
+      const ids = levelupOverlay._perkIds || [];
+      if (e.key === '1' && ids[0]) { selectPerk(ids[0]); return; }
+      if (e.key === '2' && ids[1]) { selectPerk(ids[1]); return; }
+      if (e.key === '3' && ids[2]) { selectPerk(ids[2]); return; }
+      return;
+    }
+    if (e.key === ' ' && !running) { e.preventDefault(); startGame(); return; }
+    if (e.key === 'p' || e.key === 'P') { paused = !paused; return; }
+    const d = keyMap[e.key];
+    if (!d) return;
+    e.preventDefault();
+    if (!running) return;
+    enqueueDir(d);
+  });
+
+  document.getElementById('btn-up').addEventListener('click',    () => tryDir('UP'));
+  document.getElementById('btn-down').addEventListener('click',  () => tryDir('DOWN'));
+  document.getElementById('btn-left').addEventListener('click',  () => tryDir('LEFT'));
+  document.getElementById('btn-right').addEventListener('click', () => tryDir('RIGHT'));
+
+  function enqueueDir(d) {
+    const lastDir = dirQueue.length > 0 ? dirQueue[dirQueue.length - 1] : dir;
+    const lastName = Object.keys(DIR).find(k => DIR[k] === lastDir);
+    if (d === opposite[lastName]) return;
+    if (d === lastName) return;
+    if (dirQueue.length < 3) dirQueue.push(DIR[d]);
+  }
+
+  function tryDir(d) {
+    if (!running) return;
+    enqueueDir(d);
+  }
+
+  const devOverlay  = document.getElementById('dev-overlay');
+  const devList      = document.getElementById('dev-perk-list');
+  const devSearch    = document.getElementById('dev-search');
+
+  function renderDevList(filter) {
+    filter = (filter || '').toLowerCase();
+    devList.innerHTML = '';
+    const tiers = ['common', 'rare', 'epic', 'cursed', 'legendary'];
+    tiers.forEach(tier => {
+      const pool = PERKS.filter(p => p.tier === tier &&
+        (!filter || p.name.toLowerCase().includes(filter) || p.desc.toLowerCase().includes(filter)));
+      if (!pool.length) return;
+      const hdr = document.createElement('div');
+      const tierColor = { common:'#4ecca388', rare:'#4d9fff88', epic:'#cc44ff88', cursed:'#ff446688', legendary:'#ffd70088' }[tier];
+      hdr.style.cssText = `font-size:0.62rem;letter-spacing:0.18em;color:${tierColor};padding:6px 10px 2px;text-transform:uppercase;`;
+      hdr.textContent = tier;
+      devList.appendChild(hdr);
+      pool.forEach(p => {
+        const row = document.createElement('div');
+        row.className = 'dev-perk-row';
+        const count = playerPerks[p.id] || 0;
+        const tierCls = { common:'tier-common', rare:'tier-rare', epic:'tier-epic', cursed:'tier-cursed', legendary:'tier-legendary' }[p.tier];
+        row.innerHTML =
+          `<span class="dp-icon">${p.icon}</span>` +
+          `<span class="dp-tier ${tierCls}">${p.tier.toUpperCase()}</span>` +
+          `<span class="dp-name" style="color:${p.color}">${p.name}</span>` +
+          `<span class="dp-desc">${p.desc}</span>` +
+          `<span class="dp-count">${count > 0 ? '×'+count : ''}</span>`;
+        row.addEventListener('click', () => {
+          applyPerk(p.id);
+          renderDevList(devSearch.value);
+        });
+        devList.appendChild(row);
+      });
+    });
+  }
+
+  document.getElementById('dev-perk-btn').addEventListener('click', () => {
+    if (!running) return;
+    renderDevList('');
+    devSearch.value = '';
+    devOverlay.style.display = 'flex';
+    devSearch.focus();
+  });
+
+  devSearch.addEventListener('input', () => renderDevList(devSearch.value));
+
+  document.getElementById('dev-close').addEventListener('click', () => {
+    devOverlay.style.display = 'none';
+  });
+
+  devOverlay.addEventListener('click', e => {
+    if (e.target === devOverlay) devOverlay.style.display = 'none';
+  });
+
+  document.addEventListener('keydown', e => {
+    if (devOverlay.style.display !== 'none' && e.key === 'Escape') {
+      devOverlay.style.display = 'none';
+    }
+  });
+
+  startBtn.addEventListener('click', startGame);
+
+  window.addEventListener('resize', () => { recomputeCell(); draw(); });
+
+  // touch / swipe support
+  let touchStartX = 0, touchStartY = 0;
+  canvas.addEventListener('touchstart', e => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+    if (Math.abs(dx) > Math.abs(dy)) tryDir(dx > 0 ? 'RIGHT' : 'LEFT');
+    else                              tryDir(dy > 0 ? 'DOWN'  : 'UP');
+    e.preventDefault();
+  }, { passive: false });
+
+  // ── name entry ──
+  const nameEntryOverlay = document.getElementById('name-entry-overlay');
+  const neRankEl         = document.getElementById('ne-rank');
+  const nameChars        = [document.getElementById('nc0'), document.getElementById('nc1'), document.getElementById('nc2')];
+  const nameConfirmBtn   = document.getElementById('name-confirm-btn');
+
+  function showNameEntry(rank) {
+    neRankEl.textContent = rank;
+    nameChars.forEach(c => { c.value = ''; });
+    nameEntryOverlay.style.display = 'flex';
+    setTimeout(() => nameChars[0].focus(), 50);
+  }
+
+  function submitName() {
+    const name = nameChars.map(c => (c.value || '_').toUpperCase()[0]).join('');
+    saveHiScore(name, score);
+    renderHiScores();
+    nameEntryOverlay.style.display = 'none';
+    overlayTitle.textContent = 'GAME OVER';
+    overlayMsg.textContent   = `Score: ${score}  ·  Level: ${playerLevel}`;
+    startBtn.textContent     = 'PLAY AGAIN';
+    overlay.style.display    = 'flex';
+  }
+
+  nameChars.forEach((inp, i) => {
+    inp.addEventListener('input', () => {
+      inp.value = inp.value.replace(/[^a-zA-Z0-9]/g, '').slice(-1).toUpperCase();
+      if (inp.value && i < 2) nameChars[i + 1].focus();
+    });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Backspace' && !inp.value && i > 0) {
+        nameChars[i - 1].focus();
+        nameChars[i - 1].value = '';
+      }
+      if (e.key === 'Enter') submitName();
+    });
+  });
+
+  nameConfirmBtn.addEventListener('click', submitName);
+
+  // initial render
+  init(); draw();
+</script>
+</body>
+</html>

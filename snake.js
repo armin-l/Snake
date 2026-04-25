@@ -89,6 +89,9 @@ const DOM = {
   nc1: getElement('nc1'),
   nc2: getElement('nc2'),
   nameConfirmBtn: getElement('name-confirm-btn'),
+  mobileInfoBtn: getElement('mobile-info-btn'),
+  infoDrawer: getElement('info-drawer'),
+  infoDrawerClose: getElement('info-drawer-close'),
 };
 
 const ctx = DOM.canvas.getContext('2d');
@@ -195,8 +198,9 @@ best = parseInt(localStorage.getItem(STORAGE_KEYS.best) || '0', 10);
 DOM.best.textContent = best;
 
 function recomputeCell() {
-  const availW = window.innerWidth - 228;
-  const availH = window.innerHeight - 360;
+  const isMobile = window.innerWidth <= 700;
+  const availW = window.innerWidth - (isMobile ? 20 : 228);
+  const availH = window.innerHeight - (isMobile ? 260 : 360);
   CELL = Math.max(8, Math.min(BOARD_DEFAULTS.cell, Math.floor(availW / COLS), Math.floor(availH / ROWS)));
   DOM.canvas.width = COLS * CELL;
   DOM.canvas.height = ROWS * CELL;
@@ -936,16 +940,17 @@ function onKeyDown(event) {
 function onTouchStart(event) {
   touchStartX = event.touches[0].clientX;
   touchStartY = event.touches[0].clientY;
-  event.preventDefault();
+  if (running && !DOM.infoDrawer.classList.contains('open')) event.preventDefault();
 }
 
 function onTouchEnd(event) {
+  if (DOM.infoDrawer.classList.contains('open')) return;
   const dx = event.changedTouches[0].clientX - touchStartX;
   const dy = event.changedTouches[0].clientY - touchStartY;
   if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
   if (Math.abs(dx) > Math.abs(dy)) tryDir(dx > 0 ? 'RIGHT' : 'LEFT');
   else tryDir(dy > 0 ? 'DOWN' : 'UP');
-  event.preventDefault();
+  if (running) event.preventDefault();
 }
 
 function wireNameInputs() {
@@ -996,8 +1001,18 @@ function wireEvents() {
     draw();
   });
 
-  DOM.canvas.addEventListener('touchstart', onTouchStart, { passive: false });
-  DOM.canvas.addEventListener('touchend', onTouchEnd, { passive: false });
+  document.addEventListener('touchstart', onTouchStart, { passive: false });
+  document.addEventListener('touchend', onTouchEnd, { passive: false });
+
+  DOM.mobileInfoBtn.addEventListener('click', () => {
+    DOM.infoDrawer.classList.add('open');
+  });
+  DOM.infoDrawerClose.addEventListener('click', () => {
+    DOM.infoDrawer.classList.remove('open');
+  });
+  DOM.infoDrawer.addEventListener('click', event => {
+    if (event.target === DOM.infoDrawer) DOM.infoDrawer.classList.remove('open');
+  });
   DOM.nameConfirmBtn.addEventListener('click', submitName);
   wireNameInputs();
 }

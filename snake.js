@@ -940,11 +940,13 @@ function onKeyDown(event) {
 function onTouchStart(event) {
   touchStartX = event.touches[0].clientX;
   touchStartY = event.touches[0].clientY;
-  if (running && !DOM.infoDrawer.classList.contains('open')) event.preventDefault();
+  const levelupOpen = DOM.levelupOverlay.style.display !== 'none';
+  if (running && !DOM.infoDrawer.classList.contains('open') && !levelupOpen) event.preventDefault();
 }
 
 function onTouchEnd(event) {
   if (DOM.infoDrawer.classList.contains('open')) return;
+  if (DOM.levelupOverlay.style.display !== 'none') return;
   const dx = event.changedTouches[0].clientX - touchStartX;
   const dy = event.changedTouches[0].clientY - touchStartY;
   if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;

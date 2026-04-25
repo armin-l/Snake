@@ -22,12 +22,9 @@
   <span id="xp-nums">0 / 5</span>
 </div>
 
-<div id="game-area">
+<button id="mobile-info-btn" aria-label="Open info menu">&#9776;</button>
 
-<aside id="hiscore-panel">
-  <h3>HIGH SCORES</h3>
-  <div id="hs-list"></div>
-</aside>
+<div id="game-area">
 
 <div id="canvas-wrapper">
   <canvas id="c"></canvas>
@@ -51,34 +48,43 @@
   </div>
 </div>
 
-<aside id="pu-legend">
-  <h3>Info</h3>
+<div id="info-drawer">
+  <button id="info-drawer-close" aria-label="Close menu">&#10005;</button>
 
-  <div class="pu-entry">
-    <strong style="color:#4ecca388; font-size:0.72rem;">COMBO</strong><br>
-    Eat within 2.5&nbsp;s for a &#215;2&ndash; score multiplier.
-  </div>
+  <aside id="hiscore-panel">
+    <h3>HIGH SCORES</h3>
+    <div id="hs-list"></div>
+  </aside>
 
-  <div class="pu-entry">
-    <strong style="color:#7ed6ff; font-size:0.72rem;">LEVEL UP</strong><br>
-    Fill the XP bar to pick 1 permanent perk upgrade.
-  </div>
+  <aside id="pu-legend">
+    <h3>Info</h3>
 
-  <div class="pu-entry">
-    <strong style="color:#ffd166; font-size:0.72rem;">PERK TIERS</strong><br>
-    Common is safe. Rare, epic and legendary are stronger. Cursed can bite back.
-  </div>
+    <div class="pu-entry">
+      <strong style="color:#4ecca388; font-size:0.72rem;">COMBO</strong><br>
+      Eat within 2.5&nbsp;s for a &#215;2&ndash; score multiplier.
+    </div>
 
-  <div class="pu-entry">
-    <strong style="color:#cdb4ff; font-size:0.72rem;">CONTROLS</strong><br>
-    Arrow keys or WASD to move. Press P any time to pause.
-  </div>
+    <div class="pu-entry">
+      <strong style="color:#7ed6ff; font-size:0.72rem;">LEVEL UP</strong><br>
+      Fill the XP bar to pick 1 permanent perk upgrade.
+    </div>
 
-  <div id="perk-summary" style="margin-top:10px; border-top:1px solid #4ecca318; padding-top:12px;">
-    <h3>Perks</h3>
-    <div id="active-perks" style="color:#445;">—</div>
-  </div>
-</aside>
+    <div class="pu-entry">
+      <strong style="color:#ffd166; font-size:0.72rem;">PERK TIERS</strong><br>
+      Common is safe. Rare, epic and legendary are stronger. Cursed can bite back.
+    </div>
+
+    <div class="pu-entry">
+      <strong style="color:#cdb4ff; font-size:0.72rem;">CONTROLS</strong><br>
+      Arrow keys or WASD to move. Press P any time to pause.
+    </div>
+
+    <div id="perk-summary" style="margin-top:10px; border-top:1px solid #4ecca318; padding-top:12px;">
+      <h3>Perks</h3>
+      <div id="active-perks" style="color:#445;">—</div>
+    </div>
+  </aside>
+</div>
 
 </div>
 

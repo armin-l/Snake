@@ -750,7 +750,6 @@ function handleFoodCollision(head, foodIdx, now) {
   foods.splice(foodIdx, 1);
   spawnFoods();
   maybeTriggerBurst(now);
-  ghostWalls = maxGhostWalls;
   const levelsGained = gainXP(1 + sumFx('bonusXP'));
   refreshEffects();
   applyGrowthOnEat(levelsGained);

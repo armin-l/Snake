@@ -18,7 +18,7 @@ function xpReqProduct(playerPerks, perkMap) {
 }
 
 function xpForLevel(level, playerPerks, perkMap) {
-  const base = Math.ceil(5 * Math.pow(1.1, level - 1));
+  const base = Math.ceil(5 * Math.pow(1.2, level - 1));
   return Math.max(1, Math.round(base * xpReqProduct(playerPerks, perkMap)));
 }
 

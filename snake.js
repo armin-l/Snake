@@ -944,8 +944,12 @@ function onKeyDown(event) {
   enqueueDir(directionName);
 }
 
+function isCtrlBtn(target) {
+  return target instanceof Element && !!target.closest('.ctrl-btn');
+}
+
 function onTouchStart(event) {
-  if (event.target.closest('.ctrl-btn')) return;
+  if (isCtrlBtn(event.target)) return;
   touchStartX = event.touches[0].clientX;
   touchStartY = event.touches[0].clientY;
   const levelupOpen = DOM.levelupOverlay.style.display !== 'none';
@@ -955,7 +959,7 @@ function onTouchStart(event) {
 function onTouchEnd(event) {
   if (DOM.infoDrawer.classList.contains('open')) return;
   if (DOM.levelupOverlay.style.display !== 'none') return;
-  if (event.target.closest('.ctrl-btn')) return;
+  if (isCtrlBtn(event.target)) return;
   const dx = event.changedTouches[0].clientX - touchStartX;
   const dy = event.changedTouches[0].clientY - touchStartY;
   if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
@@ -988,20 +992,16 @@ function wireEvents() {
     }
   });
 
-  DOM.btnUp.addEventListener('click', () => tryDir('UP'));
-  DOM.btnDown.addEventListener('click', () => tryDir('DOWN'));
-  DOM.btnLeft.addEventListener('click', () => tryDir('LEFT'));
-  DOM.btnRight.addEventListener('click', () => tryDir('RIGHT'));
   [
-    [DOM.btnUp, () => tryDir('UP')],
-    [DOM.btnDown, () => tryDir('DOWN')],
-    [DOM.btnLeft, () => tryDir('LEFT')],
+    [DOM.btnUp,    () => tryDir('UP')],
+    [DOM.btnDown,  () => tryDir('DOWN')],
+    [DOM.btnLeft,  () => tryDir('LEFT')],
     [DOM.btnRight, () => tryDir('RIGHT')],
     [DOM.btnPause, () => togglePause()],
   ].forEach(([btn, handler]) => {
+    btn.addEventListener('click', handler);
     btn.addEventListener('touchstart', (e) => { e.preventDefault(); handler(); }, { passive: false });
   });
-  DOM.btnPause.addEventListener('click', togglePause);
   DOM.startBtn.addEventListener('click', startGame);
 
   DOM.devPerkBtn.addEventListener('click', () => {

@@ -145,6 +145,7 @@ canvas { display: block; border-radius: 4px; }
 #btn-left  { grid-column: 1; grid-row: 2; }
 #btn-down  { grid-column: 2; grid-row: 2; }
 #btn-right { grid-column: 3; grid-row: 2; }
+#btn-pause { grid-column: 3; grid-row: 1; font-size: 1rem; }
 
 #hint { margin-top: 14px; font-size: 0.8rem; color: #555; }
 
@@ -798,4 +799,8 @@ canvas { display: block; border-radius: 4px; }
 
   /* Reset canvas-wrapper order */
   #canvas-wrapper { order: unset; }
+
+  /* Bring controls closer to the canvas */
+  #effects-bar { margin-top: 4px; }
+  #controls    { margin-top: 6px; }
 }

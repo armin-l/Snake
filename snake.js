@@ -111,8 +111,8 @@ function fetchGlobalScores() {
   return _fetchGlobalScores(SUPABASE_URL, SUPABASE_ANON_KEY, HS_MAX, normalizeHiScoresFromLogic, PERK_MAP);
 }
 
-function postGlobalScore(name, score, level) {
-  return _postGlobalScore(SUPABASE_URL, SUPABASE_ANON_KEY, name, score, level);
+function postGlobalScore(name, score, level, perks) {
+  return _postGlobalScore(SUPABASE_URL, SUPABASE_ANON_KEY, name, score, level, perks);
 }
 
 function escapeHtml(value) {
@@ -631,7 +631,7 @@ async function saveHiScore(name, value) {
   ], HS_MAX, PERK_MAP);
   renderHiScores();
   // Persist to Supabase then refresh from the server
-  await postGlobalScore(name, value, snapshot.level);
+  await postGlobalScore(name, value, snapshot.level, snapshot.perks);
   hiScores = await fetchGlobalScores();
   // Re-mark the just-submitted entry as fresh for the highlight
   hiScores = hiScores.map(entry =>

@@ -503,13 +503,14 @@ const tests = [
         capturedHeaders = opts.headers;
         capturedBody = JSON.parse(opts.body);
       };
-      await Api.postGlobalScore('https://test.supabase.co', 'key', 'abc', 42, 5, mockFetch);
+      await Api.postGlobalScore('https://test.supabase.co', 'key', 'abc', 42, 5, [{ id: 'ap_c1', count: 2 }], mockFetch);
       assertEqual(capturedMethod, 'POST', 'method should be POST');
       assertEqual(capturedHeaders['Content-Type'], 'application/json', 'Content-Type header should be set');
       assertEqual(capturedHeaders['Prefer'], 'return=minimal', 'Prefer header should request no response body');
       assertEqual(capturedBody.name, 'ABC', 'name should be uppercased in the payload');
       assertEqual(capturedBody.score, 42, 'score should be in the payload');
       assertEqual(capturedBody.level, 5, 'level should be in the payload');
+      assertDeepEqual(capturedBody.perks, [{ id: 'ap_c1', count: 2 }], 'perks should be sent in the payload');
     },
   },
   {
@@ -517,8 +518,17 @@ const tests = [
     async run() {
       let capturedBody;
       const mockFetch = async (url, opts) => { capturedBody = JSON.parse(opts.body); };
-      await Api.postGlobalScore('https://test.supabase.co', 'key', 'toolong', 10, 1, mockFetch);
+      await Api.postGlobalScore('https://test.supabase.co', 'key', 'toolong', 10, 1, [], mockFetch);
       assertEqual(capturedBody.name, 'TOO', 'name longer than three chars should be truncated');
+    },
+  },
+  {
+    name: 'postGlobalScore defaults perks to an empty array',
+    async run() {
+      let capturedBody;
+      const mockFetch = async (url, opts) => { capturedBody = JSON.parse(opts.body); };
+      await Api.postGlobalScore('https://test.supabase.co', 'key', 'abc', 10, 1, null, mockFetch);
+      assertDeepEqual(capturedBody.perks, [], 'missing perk data should default to an empty array');
     },
   },
   {
@@ -526,7 +536,30 @@ const tests = [
     async run() {
       const mockFetch = async () => { throw new Error('Network failure'); };
       // should not throw
-      await Api.postGlobalScore('https://test.supabase.co', 'key', 'xyz', 99, 2, mockFetch);
+      await Api.postGlobalScore('https://test.supabase.co', 'key', 'xyz', 99, 2, [], mockFetch);
+    },
+  },
+  {
+    name: 'postGlobalScore retries without perks on legacy schema errors',
+    async run() {
+      const bodies = [];
+      let calls = 0;
+      const mockFetch = async (url, opts) => {
+        calls++;
+        bodies.push(JSON.parse(opts.body));
+        if (calls === 1) {
+          return {
+            ok: false,
+            text: async () => 'column "perks" of relation "scores" does not exist',
+          };
+        }
+        return { ok: true };
+      };
+
+      await Api.postGlobalScore('https://test.supabase.co', 'key', 'abc', 42, 3, [{ id: 'ap_c1', count: 1 }], mockFetch);
+      assertEqual(calls, 2, 'legacy schema error should trigger a second insert without perks');
+      assert('perks' in bodies[0], 'first insert should include perks');
+      assertEqual('perks' in bodies[1], false, 'fallback insert should omit perks');
     },
   },
 ];

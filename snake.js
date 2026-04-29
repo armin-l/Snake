@@ -81,10 +81,10 @@ const DOM = {
   luLevel: getElement('lu-level'),
   activePerks: getElement('active-perks'),
   hsList: getElement('hs-list'),
+  puLegend: getElement('pu-legend'),
   devOverlay: getElement('dev-overlay'),
   devList: getElement('dev-perk-list'),
   devSearch: getElement('dev-search'),
-  devPerkBtn: getElement('dev-perk-btn'),
   devClose: getElement('dev-close'),
   btnUp: getElement('btn-up'),
   btnDown: getElement('btn-down'),
@@ -206,6 +206,7 @@ function recomputeCell() {
   CELL = Math.max(8, Math.min(BOARD_DEFAULTS.cell, Math.floor(availW / COLS), Math.floor(availH / ROWS)));
   DOM.canvas.width = COLS * CELL;
   DOM.canvas.height = ROWS * CELL;
+  DOM.puLegend.style.maxHeight = DOM.canvas.height + 'px';
 }
 
 function rnd(n) {
@@ -1002,6 +1003,15 @@ function wireNameInputs() {
   });
 }
 
+function openDevPerkOverlay() {
+  if (!running) return false;
+  renderDevList('');
+  DOM.devSearch.value = '';
+  DOM.devOverlay.style.display = 'flex';
+  DOM.devSearch.focus();
+  return true;
+}
+
 function wireEvents() {
   document.addEventListener('keydown', onKeyDown);
   document.addEventListener('keydown', event => {
@@ -1022,13 +1032,6 @@ function wireEvents() {
   });
   DOM.startBtn.addEventListener('click', startGame);
 
-  DOM.devPerkBtn.addEventListener('click', () => {
-    if (!running) return;
-    renderDevList('');
-    DOM.devSearch.value = '';
-    DOM.devOverlay.style.display = 'flex';
-    DOM.devSearch.focus();
-  });
   DOM.devSearch.addEventListener('input', () => renderDevList(DOM.devSearch.value));
   DOM.devClose.addEventListener('click', () => { DOM.devOverlay.style.display = 'none'; });
   DOM.devOverlay.addEventListener('click', event => {
@@ -1055,6 +1058,8 @@ function wireEvents() {
   DOM.nameConfirmBtn.addEventListener('click', submitName);
   wireNameInputs();
 }
+
+window.openDevPerkOverlay = openDevPerkOverlay;
 
 recomputeCell();
 wireEvents();

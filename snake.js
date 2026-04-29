@@ -180,7 +180,6 @@ let speedActive;
 let speedEnd;
 let burstScoreMult;
 let ghostWalls;
-let maxGhostWalls;
 let combo;
 let lastEatTime;
 let xp;
@@ -298,7 +297,6 @@ function init() {
   speedEnd = 0;
   burstScoreMult = 1;
   ghostWalls = 0;
-  maxGhostWalls = 0;
   combo = 0;
   lastEatTime = 0;
   xpNeeded = xpForLevel(1);
@@ -426,7 +424,6 @@ function applyPerk(id) {
   }
   if (fx.selfHits) selfHitsLeft += fx.selfHits;
   if (fx.wallPasses) {
-    maxGhostWalls += fx.wallPasses;
     ghostWalls += fx.wallPasses;
   }
   if (fx.extraFood) {
@@ -546,9 +543,11 @@ function drawFoods(now) {
 }
 
 function drawSnake() {
-  const hasWall = maxGhostWalls > 0;
+  const hasWall = ghostWalls > 0;
+  const hasShield = selfHitsLeft > 0;
   const headColor = hasWall ? '#bf7fff' : (speedActive ? '#00bfff' : COLORS.snakeHead);
   const bodyColor = hasWall ? '#9933cc' : (speedActive ? '#0077aa' : COLORS.snakeBody);
+  const shieldOutline = hasWall ? '#d8c2ff' : '#9fffc0';
 
   snake.forEach(([x, y], index) => {
     const isHead = index === 0;
@@ -563,6 +562,11 @@ function drawSnake() {
 
     roundRect(px, py, size, size, isHead ? 7 : 5);
     ctx.fill();
+    if (hasShield) {
+      ctx.lineWidth = isHead ? 2 : 1.5;
+      ctx.strokeStyle = shieldOutline;
+      ctx.stroke();
+    }
     ctx.globalAlpha = 1;
 
     if (isHead) {

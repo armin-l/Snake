@@ -320,6 +320,85 @@ const tests = [
       assertDeepEqual(grown.slice(-3), [[3, 5], [3, 5], [3, 5]], 'added growth should continue duplicating the tail');
     },
   },
+  {
+    name: 'xpForLevel uses base progression without XP perks',
+    run() {
+      const level1 = Logic.xpForLevel(1, {}, PERK_MAP);
+      const level5 = Logic.xpForLevel(5, {}, PERK_MAP);
+
+      assertEqual(level1, 5, 'level 1 should use the base XP requirement when no discounts are active');
+      assertEqual(level5, 11, 'level 5 should follow base scaling and rounding');
+    },
+  },
+  {
+    name: 'resolveWallCollision leaves state unchanged inside bounds',
+    run() {
+      const result = Logic.resolveWallCollision({
+        head: [10, 10],
+        cols: 20,
+        rows: 20,
+        ghostWalls: 3,
+        selfHitsLeft: 2,
+        lastEatTime: 555,
+        wallDamage: 5,
+        comboNoReset: true,
+      });
+
+      assertEqual(result.hitWall, false, 'in-bounds movement should not be treated as a wall hit');
+      assertEqual(result.wrapped, false, 'in-bounds movement should not wrap');
+      assertEqual(result.damaged, false, 'in-bounds movement should not apply wall damage');
+      assertEqual(result.ghostWalls, 3, 'wall-pass charges should remain unchanged in bounds');
+      assertEqual(result.selfHitsLeft, 2, 'shield count should remain unchanged in bounds');
+      assertDeepEqual(result.head, [10, 10], 'head position should stay unchanged in bounds');
+    },
+  },
+  {
+    name: 'resolveSelfCollision does nothing when head is clear',
+    run() {
+      const result = Logic.resolveSelfCollision({
+        head: [6, 6],
+        snake: [[5, 6], [4, 6], [3, 6]],
+        selfHitsLeft: 4,
+      });
+
+      assertEqual(result.alive, true, 'clear movement should remain alive');
+      assertEqual(result.hitSelf, false, 'clear movement should not register as self-collision');
+      assertEqual(result.shieldUsed, false, 'clear movement should not consume shields');
+      assertEqual(result.selfHitsLeft, 4, 'shield count should stay unchanged when no collision occurs');
+    },
+  },
+  {
+    name: 'normalizeHiScoreEntry sanitizes malformed perk details',
+    run() {
+      const entry = Logic.normalizeHiScoreEntry({
+        name: 'mix',
+        score: 20,
+        level: 3.8,
+        perks: [
+          { id: 'ap_c1', count: 0 },
+          { id: 'missing_perk', count: -7, icon: 'X', tier: 'epic', name: 'Legacy' },
+          null,
+        ],
+      }, PERK_MAP);
+
+      assertEqual(entry.level, 3, 'level should be floored to an integer');
+      assertEqual(entry.perks.length, 2, 'invalid perk items should be filtered out');
+      assertDeepEqual(entry.perks[0], {
+        id: 'ap_c1',
+        count: 1,
+        name: 'Appetite I',
+        icon: '🍎',
+        tier: 'common',
+      }, 'known perks should clamp count and hydrate from current metadata');
+      assertDeepEqual(entry.perks[1], {
+        id: 'missing_perk',
+        count: 1,
+        name: 'Legacy',
+        icon: 'X',
+        tier: 'epic',
+      }, 'unknown perks should keep legacy display metadata while clamping count');
+    },
+  },
 ];
 
 function render(results) {

@@ -1,6 +1,7 @@
-(() => {
+(async () => {
 const { PERK_MAP } = window.SnakePerks;
 const Logic = window.SnakeLogic;
+const Api = window.SnakeApi;
 
 function assert(condition, message) {
   if (!condition) throw new Error(message || 'Assertion failed');
@@ -399,6 +400,135 @@ const tests = [
       }, 'unknown perks should keep legacy display metadata while clamping count');
     },
   },
+
+  // ── Global scoreboard (SnakeApi) ──────────────────────────────────────────
+
+  {
+    name: 'qualifiesForHiScore rejects zero and negative scores',
+    run() {
+      assertEqual(Api.qualifiesForHiScore([], 10, 0), false, 'zero score should not qualify');
+      assertEqual(Api.qualifiesForHiScore([], 10, -5), false, 'negative score should not qualify');
+    },
+  },
+  {
+    name: 'qualifiesForHiScore allows entry when board is not full',
+    run() {
+      const board = [{ score: 100 }, { score: 50 }];
+      assertEqual(Api.qualifiesForHiScore(board, 10, 1), true, 'any positive score qualifies when board has room');
+    },
+  },
+  {
+    name: 'qualifiesForHiScore rejects score that does not beat last place',
+    run() {
+      const board = Array.from({ length: 10 }, (_, i) => ({ score: (10 - i) * 10 }));
+      assertEqual(Api.qualifiesForHiScore(board, 10, 10), false, 'score equal to last place should not qualify');
+      assertEqual(Api.qualifiesForHiScore(board, 10, 5), false, 'score below last place should not qualify');
+    },
+  },
+  {
+    name: 'qualifiesForHiScore accepts score that beats last place on a full board',
+    run() {
+      const board = Array.from({ length: 10 }, (_, i) => ({ score: (10 - i) * 10 }));
+      assertEqual(Api.qualifiesForHiScore(board, 10, 11), true, 'score above last place on a full board should qualify');
+    },
+  },
+  {
+    name: 'fetchGlobalScores returns normalized rows on a successful response',
+    async run() {
+      const rows = [
+        { name: 'aaa', score: 80, level: 3 },
+        { name: 'bbb', score: 50, level: 1 },
+      ];
+      const mockFetch = async () => ({
+        ok: true,
+        json: async () => rows,
+      });
+      const result = await Api.fetchGlobalScores(
+        'https://test.supabase.co', 'key123', 10,
+        Logic.normalizeHiScores, PERK_MAP, mockFetch
+      );
+      assertEqual(result.length, 2, 'both rows should be returned');
+      assertEqual(result[0].name, 'AAA', 'names should be uppercased by normalization');
+      assertEqual(result[0].score, 80, 'scores should be preserved');
+    },
+  },
+  {
+    name: 'fetchGlobalScores sends correct URL and auth headers',
+    async run() {
+      let capturedUrl, capturedHeaders;
+      const mockFetch = async (url, opts) => {
+        capturedUrl = url;
+        capturedHeaders = opts.headers;
+        return { ok: true, json: async () => [] };
+      };
+      await Api.fetchGlobalScores(
+        'https://proj.supabase.co', 'anon-key', 5,
+        Logic.normalizeHiScores, PERK_MAP, mockFetch
+      );
+      assert(capturedUrl.includes('/rest/v1/scores'), 'URL should target the scores endpoint');
+      assert(capturedUrl.includes('limit=5'), 'URL should include the configured limit');
+      assert(capturedUrl.includes('order=score.desc'), 'URL should request descending score order');
+      assertEqual(capturedHeaders.apikey, 'anon-key', 'apikey header should be set');
+      assertEqual(capturedHeaders.Authorization, 'Bearer anon-key', 'Authorization header should be set');
+    },
+  },
+  {
+    name: 'fetchGlobalScores returns empty array on non-ok HTTP response',
+    async run() {
+      const mockFetch = async () => ({ ok: false });
+      const result = await Api.fetchGlobalScores(
+        'https://test.supabase.co', 'key', 10,
+        Logic.normalizeHiScores, PERK_MAP, mockFetch
+      );
+      assertDeepEqual(result, [], 'non-ok response should yield an empty array');
+    },
+  },
+  {
+    name: 'fetchGlobalScores returns empty array on network error',
+    async run() {
+      const mockFetch = async () => { throw new Error('Network failure'); };
+      const result = await Api.fetchGlobalScores(
+        'https://test.supabase.co', 'key', 10,
+        Logic.normalizeHiScores, PERK_MAP, mockFetch
+      );
+      assertDeepEqual(result, [], 'network error should be swallowed and yield an empty array');
+    },
+  },
+  {
+    name: 'postGlobalScore sends correct JSON payload',
+    async run() {
+      let capturedBody, capturedMethod, capturedHeaders;
+      const mockFetch = async (url, opts) => {
+        capturedMethod = opts.method;
+        capturedHeaders = opts.headers;
+        capturedBody = JSON.parse(opts.body);
+      };
+      await Api.postGlobalScore('https://test.supabase.co', 'key', 'abc', 42, 5, mockFetch);
+      assertEqual(capturedMethod, 'POST', 'method should be POST');
+      assertEqual(capturedHeaders['Content-Type'], 'application/json', 'Content-Type header should be set');
+      assertEqual(capturedHeaders['Prefer'], 'return=minimal', 'Prefer header should request no response body');
+      assertEqual(capturedBody.name, 'ABC', 'name should be uppercased in the payload');
+      assertEqual(capturedBody.score, 42, 'score should be in the payload');
+      assertEqual(capturedBody.level, 5, 'level should be in the payload');
+    },
+  },
+  {
+    name: 'postGlobalScore truncates name to three characters',
+    async run() {
+      let capturedBody;
+      const mockFetch = async (url, opts) => { capturedBody = JSON.parse(opts.body); };
+      await Api.postGlobalScore('https://test.supabase.co', 'key', 'toolong', 10, 1, mockFetch);
+      assertEqual(capturedBody.name, 'TOO', 'name longer than three chars should be truncated');
+    },
+  },
+  {
+    name: 'postGlobalScore swallows network errors silently',
+    async run() {
+      const mockFetch = async () => { throw new Error('Network failure'); };
+      // should not throw
+      await Api.postGlobalScore('https://test.supabase.co', 'key', 'xyz', 99, 2, mockFetch);
+    },
+  },
 ];
 
 function render(results) {
@@ -426,14 +556,14 @@ function render(results) {
   });
 }
 
-const results = tests.map(test => {
+const results = await Promise.all(tests.map(async test => {
   try {
-    test.run();
+    await test.run();
     return { name: test.name, pass: true, message: 'OK' };
   } catch (error) {
     return { name: test.name, pass: false, message: error.message };
   }
-});
+}));
 
 render(results);
 })();

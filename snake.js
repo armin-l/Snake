@@ -13,7 +13,14 @@ const {
 } = window.SnakeLogic;
 
 const BOARD_DEFAULTS = { cell: 28, cols: 20, rows: 20 };
-const STORAGE_KEYS = { best: 'snakeBest', hiScores: 'snakeHiScores' };
+const STORAGE_KEYS = { best: 'snakeBest' };
+
+// ── Supabase global scoreboard ──────────────────────────────────────────────
+// Replace these two values with your project's URL and anon key.
+// The anon key is intentionally public; Row Level Security restricts it to
+// SELECT and INSERT on the `scores` table only.
+const SUPABASE_URL = 'https://siaxsqzpxpfunlvoncoa.supabase.co';       // e.g. https://xyzxyz.supabase.co
+const SUPABASE_ANON_KEY = 'sb_publishable_s2AbbtFXYckdDc5bD6wD1Q_NEQp3vCS';     // Settings → API → anon public
 const HS_MAX = 10;
 const BLITZ_DURATION_BASE = 3000;
 const BASE_COMBO_WINDOW = 2500;
@@ -98,13 +105,14 @@ const DOM = {
 const ctx = DOM.canvas.getContext('2d');
 const nameChars = [DOM.nc0, DOM.nc1, DOM.nc2];
 
-function readStoredHiScores() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.hiScores) || '[]');
-    return normalizeHiScoresFromLogic(raw, HS_MAX, PERK_MAP);
-  } catch {
-    return [];
-  }
+const { qualifiesForHiScore: _qualifiesForHiScore, fetchGlobalScores: _fetchGlobalScores, postGlobalScore: _postGlobalScore } = window.SnakeApi;
+
+function fetchGlobalScores() {
+  return _fetchGlobalScores(SUPABASE_URL, SUPABASE_ANON_KEY, HS_MAX, normalizeHiScoresFromLogic, PERK_MAP);
+}
+
+function postGlobalScore(name, score, level) {
+  return _postGlobalScore(SUPABASE_URL, SUPABASE_ANON_KEY, name, score, level);
 }
 
 function escapeHtml(value) {
@@ -117,21 +125,7 @@ function escapeHtml(value) {
   });
 }
 
-function serializeHiScoreEntry(entry) {
-  return {
-    name: entry.name,
-    score: entry.score,
-    level: entry.level,
-    perks: entry.perks.map(perk => ({ id: perk.id, count: perk.count })),
-  };
-}
 
-function persistHiScores() {
-  localStorage.setItem(
-    STORAGE_KEYS.hiScores,
-    JSON.stringify(hiScores.map(serializeHiScoreEntry))
-  );
-}
 
 function buildCurrentHiScoreSnapshot() {
   return snapshotHiScoreDetailsFromLogic(playerLevel, playerPerks);
@@ -188,7 +182,8 @@ let playerLevel;
 let playerPerks;
 let selfHitsLeft;
 let pendingLevelUps;
-let hiScores = readStoredHiScores();
+let hiScores = [];
+let hiScoresLoading = true;
 let lastTime = 0;
 let accumulated = 0;
 let touchStartX = 0;
@@ -196,6 +191,13 @@ let touchStartY = 0;
 
 best = parseInt(localStorage.getItem(STORAGE_KEYS.best) || '0', 10);
 DOM.best.textContent = best;
+
+// Load global scores asynchronously on startup
+(async () => {
+  hiScores = await fetchGlobalScores();
+  hiScoresLoading = false;
+  renderHiScores();
+})();
 
 function recomputeCell() {
   const isMobile = window.innerWidth <= 700;
@@ -616,21 +618,34 @@ function draw() {
 }
 
 function qualifiesForHiScore(value) {
-  if (value <= 0) return false;
-  if (hiScores.length < HS_MAX) return true;
-  return value > hiScores[hiScores.length - 1].score;
+  return _qualifiesForHiScore(hiScores, HS_MAX, value);
 }
 
-function saveHiScore(name, value) {
+async function saveHiScore(name, value) {
   const snapshot = buildCurrentHiScoreSnapshot();
+  // Optimistically insert the new entry so the board updates instantly
   hiScores = normalizeHiScoresFromLogic([
     ...hiScores,
     { name: name.toUpperCase(), score: value, level: snapshot.level, perks: snapshot.perks, fresh: true },
   ], HS_MAX, PERK_MAP);
-  persistHiScores();
+  renderHiScores();
+  // Persist to Supabase then refresh from the server
+  await postGlobalScore(name, value, snapshot.level);
+  hiScores = await fetchGlobalScores();
+  // Re-mark the just-submitted entry as fresh for the highlight
+  hiScores = hiScores.map(entry =>
+    entry.name === name.toUpperCase() && entry.score === value
+      ? { ...entry, fresh: true }
+      : entry
+  );
+  renderHiScores();
 }
 
 function renderHiScores() {
+  if (hiScoresLoading) {
+    DOM.hsList.innerHTML = '<div class="hs-row" style="justify-content:center;color:#4ecca388;font-size:0.6rem;letter-spacing:0.1em;padding:8px 0;">LOADING…</div>';
+    return;
+  }
   if (hiScores.length === 0) {
     DOM.hsList.innerHTML = '<div class="hs-row" style="justify-content:center;color:#334;font-size:0.6rem;letter-spacing:0.1em;padding:8px 0;">NO SCORES YET</div>';
     return;
@@ -911,9 +926,8 @@ function showNameEntry(rank) {
 
 function submitName() {
   const name = nameChars.map(input => (input.value || '_').toUpperCase()[0]).join('');
-  saveHiScore(name, score);
-  renderHiScores();
   DOM.nameEntryOverlay.style.display = 'none';
+  saveHiScore(name, score); // async — board updates optimistically then syncs
   DOM.overlayTitle.textContent = 'GAME OVER';
   DOM.overlayMsg.textContent = `Score: ${score}  ·  Level: ${playerLevel}`;
   DOM.startBtn.textContent = 'PLAY AGAIN';
